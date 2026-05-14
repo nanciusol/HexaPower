@@ -55,10 +55,11 @@ aver installato file editor in home assistant
 
 
 
-[![Watch the video](https://img.youtube.com/vi/<q4mIQcONz31tY_L9>/hqdefault.jpg)](https://www.youtube.com/embed/<q4mIQcONz31tY_L9>)
+https://youtube.com/shorts/-gzreVxrSEs?si=qf0Dri5NgkgJwrMi
 
-[<img src="https://img.youtube.com/vi/<q4mIQcONz31tY_L9>/hqdefault.jpg" width="600" height="300"
-/>](https://youtube.com/shorts/-gzreVxrSEs?si=q4mIQcONz31tY_L9/embed/<VIDEO_ID>)
+https://github.com/user-attachments/assets/430c4126-f7b7-4e53-ac12-8cb4c9baed38
+
+
 
 \# Installazione
 
