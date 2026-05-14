@@ -1,0 +1,70 @@
+title: Hexa Power Simple
+icon: mdi:solar-power
+
+views:
+  - title: Hexa
+    path: hexa
+    icon: mdi:lightning-bolt
+
+    cards:
+      - type: markdown
+        content: |
+          # ⚡ HEXA POWER
+
+          {% if is_state('input_boolean.hexa_master', 'on') %}
+          🟢 Sistema Attivo
+          {% else %}
+          🔴 Sistema Spento
+          {% endif %}
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            entity: input_boolean.hexa_master
+            name: Sistema
+            tap_action:
+              action: toggle
+
+          - type: button
+            entity: input_boolean.hexa_auto_mode
+            name: Auto FV
+            tap_action:
+              action: toggle
+
+          - type: button
+            entity: input_boolean.hexa_manual_mode
+            name: Manuale
+            tap_action:
+              action: toggle
+
+      - type: entities
+        title: Stato Caricatore
+        show_header_toggle: false
+        entities:
+          - entity: sensor.hexa_tensione_attuale
+            name: Tensione
+
+          - entity: sensor.hexa_corrente_attuale
+            name: Corrente
+
+          - entity: sensor.hexa_potenza_attuale
+            name: Potenza
+
+          - entity: sensor.grid_power_flow
+            name: Flusso Rete
+
+          - entity: sensor.hexa_corrente_calcolata
+            name: Corrente Auto Calcolata
+
+          - entity: binary_sensor.hexa_dati_validi
+            name: Connessione API
+
+      - type: conditional
+        conditions:
+          - entity: input_boolean.hexa_manual_mode
+            state: "on"
+        card:
+          type: entities
+          title: Controllo Manuale
+          entities:
+            name: Rete

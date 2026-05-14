@@ -1,0 +1,82 @@
+########################################
+# HEXA POWER - SIMPLE EDITION
+# Sistema base caricatore Hexa
+# - Connessione API
+# - Controllo manuale
+# - Automazione semplice su surplus FV
+# - Dashboard pulita
+########################################
+
+input_boolean:
+  hexa_master:
+    name: "Hexa Sistema"
+    icon: mdi:power
+
+  hexa_auto_mode:
+    name: "Hexa Auto FV"
+    icon: mdi:solar-power
+
+  hexa_manual_mode:
+    name: "Hexa Manuale"
+    icon: mdi:hand-back-left
+
+input_number:
+  hexa_voltage:
+    name: "Tensione"
+    min: 40
+    max: 60
+    step: 0.1
+    initial: 55.6
+    unit_of_measurement: "V"
+
+  hexa_manual_amp:
+    name: "Corrente Manuale"
+    min: 1
+    max: 30
+    step: 1
+    initial: 5
+    unit_of_measurement: "A"
+
+  hexa_max_amp:
+    name: "Corrente Massima"
+    min: 1
+    max: 30
+    step: 1
+    initial: 30
+    unit_of_measurement: "A"
+
+  hexa_watt_per_amp:
+    name: "Watt per Ampere"
+    min: 40
+    max: 80
+    step: 1
+    initial: 60
+    unit_of_measurement: "W/A"
+
+input_text:
+  hexa_plug_entity:
+    name: "Smart Plug Entity"
+    initial: "switch.smart_plug"
+
+sensor:
+  - platform: rest
+    name: "Hexa Power Gateway"
+    resource: "http://192.168.4.1/api/chargeStatus"
+    scan_interval: 10
+    timeout: 10
+    value_template: "{{ value_json.Charge_Stage | int(0) }}"
+    json_attributes:
+      - voltageNow
+      - currentNow
+      - MAX_Voltage
+      - MAX_Current
+      - batteryLevel
+      - tntc1Now
+
+template:
+  - sensor:
+      - name: "Hexa Tensione Attuale"
+        unit_of_measurement: "V"
+        device_class: voltage
+        state: "{{ state_attr('sensor.hexa_power_gateway', 'voltageNow') | float(0) | round(1) }}"
+      - service: script.hexa_stop
