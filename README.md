@@ -54,6 +54,12 @@ aver installato file editor in home assistant
 \- Per usare tutte le automazioni è necessario un sensore  che rilevi i consumi, ad esempio un  meter TA. Così facendo si ha molto di più di un carica batterie... ma propio un sistema per l'autocarica che sfrutta il surplus energetico... )
 
 
+
+[![Watch the video](https://img.youtube.com/vi/<q4mIQcONz31tY_L9>/hqdefault.jpg)](https://www.youtube.com/embed/<q4mIQcONz31tY_L9>)
+
+[<img src="https://img.youtube.com/vi/<q4mIQcONz31tY_L9>/hqdefault.jpg" width="600" height="300"
+/>](https://youtube.com/shorts/-gzreVxrSEs?si=q4mIQcONz31tY_L9/embed/<VIDEO_ID>)
+
 \# Installazione
 
      
