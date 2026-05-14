@@ -48,10 +48,10 @@ aver installato file editor in home assistant
 
 \- AI varia aiuta nelle piccolezze.. 
 
-\--- Home Assistant collegato con scheda wifi dedicata da collegare al charger
+\--- Home Assistant collegato al  wifi al charger (meglio con scheda wifi dedicata )  
 
 
-
+\- Per usare tutte le automazioni è necessario un sensore  che rilevi i consumi, ad esempio un  meter TA. Così facendo si ha molto di più di un carica batterie... ma propio un sistema per l'autocarica che sfrutta il surplus energetico... )
 
 
 \# Installazione
