@@ -1,0 +1,908 @@
+title: Hexa Power Control
+icon: mdi:solar-power-variant
+theme: default
+
+views:
+  - title: Controllo Principale
+    path: controllo
+    icon: mdi:lightning-bolt
+    badges: []
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              # ⚡ Sistema Hexa Power
+              {% set stato = states('sensor.hexa_stato_dettagliato') %}
+              {% set master = is_state('input_boolean.hexa_master', 'on') %}
+              {% set colore = 'green' if master else 'red' %}
+              <font color="{{ colore }}"><b>{{ '🟢 ATTIVO' if master else '🔴 SPENTO' }}</b></font> - {{ stato }}
+              
+              ---
+              **Ultimo stato:** {{ states('input_text.hexa_stato_sistema') }}
+              
+              **Smart Plug:** `{{ states('input_text.hexa_smart_plug_entity') }}`  
+              **Assorbimento presa (W):** {{ states('sensor.hexa_smart_plug_power_w') }}
+              
+              **Limiti configurati:** Max {{ states('input_number.hexa_max_current') }}A @ {{ states('input_number.hexa_max_voltage') }}V
+              
+              **Tensione di rete:** {{ states('sensor.hexa_tensione_attuale') }}
+
+          - type: horizontal-stack
+            cards:
+              - type: button
+                entity: input_boolean.hexa_master
+                name: Sistema
+                icon: mdi:power
+                tap_action:
+                  action: toggle
+                hold_action:
+                  action: more-info
+                show_state: true
+
+              - type: button
+                entity: input_boolean.hexa_solar_automation
+                name: Auto Solare
+                icon: mdi:solar-power
+                tap_action:
+                  action: toggle
+                show_state: true
+
+              - type: button
+                entity: input_boolean.hexa_manual_force
+                name: Manuale
+                icon: mdi:hand-back-left
+                tap_action:
+                  action: toggle
+                show_state: true
+
+              # Pulsante plug configurabile: cambia input_text.hexa_smart_plug_entity
+              - type: button
+                entity: script.hexa_toggle_smart_plug
+                name: Plug
+                icon: mdi:power-socket-eu
+                tap_action:
+                  action: call-service
+                  service: script.hexa_toggle_smart_plug
+                show_state: false
+
+      - type: entities
+        title: Tempi
+        entities:
+          - type: section
+            label: Integrità & Sincronizzazione
+          - entity: input_text.hexa_stato_sistema
+            name: Sincronizzazione Hardware
+            icon: mdi:sync
+            tap_action:
+              action: none
+          - entity: sensor.hexa_corrente_attuale
+            name: Corrente Reale Lettura
+            secondary_info: last-updated
+          - entity: binary_sensor.hexa_dati_validi
+            name: Connessione Sensori
+          - entity: sensor.hexa_minuti_ultimo_update_stato_sistema
+            name: Minuti dall'ultimo aggiornamento
+            icon: mdi:timer-outline
+
+      # Meteo opzionale: imposta input_text.hexa_weather_entity e aggiungi manualmente una weather-card se desiderata.
+
+      - type: custom:power-flow-card-plus
+        entities:
+          # battery: non configurata (rimuovere o aggiungere sensore SOC reale)
+          grid:
+            entity: sensor.hexa_grid_power_w
+            secondary_info: {}
+            invert_state: false
+            use_metadata: false
+            color_value: true
+            color:
+              consumption:
+                - 255
+                - 0
+                - 0
+              production:
+                - 128
+                - 255
+                - 128
+            color_circle: color_dynamically
+            display_state: one_way_no_zero
+            display_zero_tolerance: 2
+            name: Enel
+          home:
+            entity: sensor.hexa_home_power_w
+            name: Casa
+            secondary_info:
+              color_value: true
+            subtract_individual: false
+            override_state: false
+            use_metadata: true
+            hide: false
+            circle_animation: true
+          individual: []
+          solar:
+            secondary_info: {}
+            entity: sensor.hexa_solar_power_w
+            color_value: false
+            color_icon: false
+            display_zero: false
+            display_zero_state: false
+            color:
+              - 128
+              - 255
+              - 128
+        clickable_entities: true
+        display_zero_lines:
+          mode: hide
+          transparency: 50
+          grey_color:
+            - 189
+            - 189
+            - 189
+        use_new_flow_rate_model: true
+        w_decimals: 0
+        kw_decimals: 1
+        min_flow_rate: 0.75
+        max_flow_rate: 6
+        max_expected_power: 2000
+        min_expected_power: 0.01
+        watt_threshold: 1000
+        transparency_zero_lines: 0
+        sort_individual_devices: false
+        title: Gestione Consumi
+        grid_options:
+          columns: full
+
+
+      # ─── [P12] Prossima Azione ──────────────────────────────
+      - type: markdown
+        title: "⚡ Prossima Azione"
+        content: |
+          ## {{ states('sensor.hexa_prossima_azione') }}
+          ---
+          **Rete:** {{ states('sensor.hexa_grid_power_w') | float(0) | round(0) }}W
+          &nbsp;|&nbsp; **EMA:** {{ states('input_number.hexa_ema_grid_w') | float(0) | round(0) }}W
+          &nbsp;|&nbsp; **σ:** {{ states('sensor.hexa_grid_power_stddev_60s') | float(0) | round(0) }}W
+          &nbsp;|&nbsp; **HS-thr:** {{ states('input_number.hexa_half_slow_stddev_w') }}W
+
+      # ─── [P11] SOC Gauge + [P10] Sessione Corrente ────────
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            name: "🔋 SOC Stimato (16S BMS)"
+            entity: sensor.hexa_soc_stimato
+            unit: "%"
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 50
+              yellow: 20
+              red: 0
+
+          - type: entities
+            title: "📊 Sessione Corrente"
+            show_header_toggle: false
+            entities:
+              - entity: sensor.hexa_durata_sessione
+                name: Durata
+                icon: mdi:timer-play
+              - entity: sensor.hexa_energy_session
+                name: Energia sessione
+                icon: mdi:lightning-bolt
+              - entity: sensor.hexa_energy_daily
+                name: Energia oggi
+                icon: mdi:solar-power
+              - entity: sensor.hexa_soc_stimato
+                name: SOC stimato
+                icon: mdi:battery-charging
+              - entity: input_number.hexa_session_start_v
+                name: V inizio
+                icon: mdi:lightning-bolt-outline
+              - entity: sensor.hexa_tensione_attuale
+                name: V attuale
+                icon: mdi:lightning-bolt
+              - entity: sensor.hexa_temperatura
+                name: Temperatura
+                icon: mdi:thermometer
+
+      - type: entities
+        title: 📊 Monitoraggio Realtime
+        show_header_toggle: false
+        entities:
+          - entity: sensor.hexa_corrente_attuale
+            name: Corrente Attuale
+            icon: mdi:current-dc
+          - entity: sensor.hexa_corrente_impostata
+            name: Corrente Impostata
+            icon: mdi:bullseye-arrow
+          - entity: sensor.hexa_limite_corrente_carica
+            name: Limite Curva V/I
+            icon: mdi:chart-bell-curve-cumulative
+          - entity: sensor.hexa_corrente_max_effettiva
+            name: Corrente Max Effettiva
+            icon: mdi:current-ac
+          - entity: sensor.hexa_tensione_attuale
+            name: Tensione Attuale
+            icon: mdi:lightning-bolt
+          - entity: sensor.hexa_voltage_mean_30s
+            name: Tensione Media 30s
+            icon: mdi:lightning-bolt-outline
+          - entity: sensor.hexa_potenza_attuale
+            name: Potenza Attuale
+            icon: mdi:flash
+          - entity: sensor.hexa_temperatura
+            name: Temperatura
+            icon: mdi:thermometer
+          - type: divider
+          - entity: sensor.hexa_grid_power_w
+            name: Flusso Rete
+            icon: mdi:transmission-tower
+          - entity: sensor.hexa_ampere_calcolati
+            name: Target Calcolato
+            icon: mdi:calculator
+          - entity: binary_sensor.hexa_dati_validi
+            name: Connessione API
+            icon: mdi:api
+
+      - type: conditional
+        conditions:
+          - entity: input_boolean.hexa_manual_force
+            state: "on"
+        card:
+          type: entities
+          title: ✋ Controllo Manuale
+          show_header_toggle: false
+          entities:
+            - entity: input_number.set_hexa_volts
+              name: Tensione Manuale
+              icon: mdi:lightning-bolt-outline
+            - entity: input_number.set_hexa_amps
+              name: Corrente Manuale
+              icon: mdi:current-dc
+            - type: divider
+            - entity: input_datetime.hexa_last_manual_time
+              name: Ultimo Comando
+              icon: mdi:clock-outline
+
+      - type: history-graph
+        title: 📈 Storico Potenza (24h)
+        hours_to_show: 24
+        refresh_interval: 30
+        entities:
+          - entity: sensor.hexa_potenza_attuale
+            name: Hexa
+          - entity: sensor.hexa_grid_power_w
+            name: Rete
+
+      - type: history-graph
+        title: 📈 Storico Corrente (24h)
+        hours_to_show: 24
+        refresh_interval: 30
+        entities:
+          - entity: sensor.hexa_corrente_attuale
+            name: Attuale
+          - entity: sensor.hexa_corrente_impostata
+            name: Impostata
+          - entity: sensor.hexa_limite_corrente_carica
+            name: Limite V/I
+
+  - title: Parametri
+    path: parametri
+    icon: mdi:cog
+    badges: []
+    cards:
+      - type: entities
+        title: ⚙️ Limiti Sistema
+        show_header_toggle: false
+        state_color: true
+        entities:
+          - type: section
+            label: Limiti Massimi
+          - entity: input_number.hexa_max_voltage
+            name: Tensione Massima
+            icon: mdi:lightning-bolt-circle
+          - entity: input_number.hexa_max_current
+            name: Corrente Massima
+            icon: mdi:current-dc
+          - type: divider
+          - type: section
+            label: Limiti Minimi
+          - entity: input_number.hexa_min_amp_normal
+            name: Ampere Minimo Normale
+            icon: mdi:speedometer-slow
+          - type: divider
+          - type: section
+            label: Conversione e Step
+          - entity: input_number.hexa_watt_per_amp
+            name: Watt per Ampere
+            icon: mdi:division
+          - entity: input_number.hexa_max_step_amp
+            name: Massimo Salto Ampere (UP)
+            icon: mdi:arrow-expand-vertical
+
+      - type: entities
+        title: 🔋 Curva Fine Carica (V → A)
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Breakpoint Curva
+          - entity: input_number.hexa_curve_v1
+            name: V1 — Inizio riduzione corrente
+            icon: mdi:chart-timeline-variant
+          - entity: input_number.hexa_curve_v2
+            name: V2 — Arrivo a 2A
+            icon: mdi:chart-bell-curve
+          - entity: input_number.hexa_charge_stop_v
+            name: V_stop — Arrivo a 1A + Spegnimento
+            icon: mdi:battery-alert-variant
+          - type: divider
+          - type: section
+            label: Modalità Fine Carica (55.20V)
+          - entity: input_boolean.hexa_mode_finish
+            name: Fine Carica Attiva
+            icon: mdi:battery-heart-variant
+          - entity: sensor.hexa_voltage_mean_30s
+            name: Tensione Media 30s
+            icon: mdi:lightning-bolt-outline
+          - entity: sensor.hexa_limite_corrente_carica
+            name: Limite Corrente Calcolato
+            icon: mdi:current-ac
+          - type: divider
+          - type: section
+            label: Stop Automatico
+          - entity: input_number.hexa_charge_stop_hold_s
+            name: Hold prima dello stop (s)
+            icon: mdi:timer
+          - entity: input_number.hexa_charge_stop_i_a
+            name: Corrente max per stop (A)
+            icon: mdi:current-dc
+
+      - type: markdown
+        title: 📊 Curva V/I - Simulazione
+        content: |
+          | Tensione | Limite A |
+          |----------|----------|
+          | < **{{ states('input_number.hexa_curve_v1') }}V** | **{{ states('input_number.hexa_max_current') | int }}A** (piena) |
+          | **{{ states('input_number.hexa_curve_v1') }}V** | **{{ states('input_number.hexa_max_current') | int }}A** |
+          | {{ ((states('input_number.hexa_curve_v1')|float + states('input_number.hexa_curve_v2')|float) / 2)|round(2) }}V | {{ ((states('input_number.hexa_max_current')|float + 2) / 2)|round(0)|int }}A |
+          | **{{ states('input_number.hexa_curve_v2') }}V** | **2A** |
+          | {{ ((states('input_number.hexa_curve_v2')|float + states('input_number.hexa_charge_stop_v')|float) / 2)|round(2) }}V | ~1A |
+          | ≥ **{{ states('input_number.hexa_charge_stop_v') }}V** | **1A + 🛑 STOP** |
+
+      - type: entities
+        title: ⚙️ Deadband e Temporizzazioni
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Deadband (Isteresi)
+          - entity: input_number.hexa_deadband_down_w
+            name: Deadband Discesa (W)
+            icon: mdi:arrow-down-bold
+          - entity: input_number.hexa_deadband_up_w
+            name: Deadband Salita (W)
+            icon: mdi:arrow-up-bold
+          - type: divider
+          - type: section
+            label: Cooldown
+          - entity: input_number.hexa_cooldown_up_sec
+            name: Cooldown Salita (s)
+            icon: mdi:timer-sand
+          - entity: input_number.hexa_cooldown_down_sec
+            name: Cooldown Discesa (s)
+            icon: mdi:timer-sand-empty
+          - type: divider
+          - type: section
+            label: Modalità lenta (anti-sbalzi)
+          - entity: input_number.hexa_slow_min_swing_w
+            name: Valore minimo sbalzo (W)
+            icon: mdi:flash-alert
+          - entity: input_number.hexa_slow_ab_threshold
+            name: Soglia sbalzi AB
+            icon: mdi:swap-vertical
+          - entity: input_number.hexa_slow_tx_sec
+            name: Finestra sbalzi TX (s)
+            icon: mdi:clock-outline
+          - entity: input_number.hexa_slow_tc_min
+            name: Durata modalità lenta TC (min)
+            icon: mdi:timer-sand
+          - entity: input_number.hexa_slow_lookback_sec
+            name: Lookback delta minimo (s)
+            icon: mdi:history
+          - entity: input_number.hexa_slow_min_base_a
+            name: Corrente minima base (A)
+            icon: mdi:speedometer-slow
+          - entity: input_number.hexa_voltage_drop_delta_max_a
+            name: Riduzione massima A per ciclo
+            icon: mdi:arrow-collapse-down
+
+
+      - type: entities
+        title: "📡 EMA Surplus & Half-Slow (P4+P6)"
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: EMA (Media Mobile Esponenziale)
+          - entity: input_number.hexa_ema_alpha
+            name: Alpha (reattività)
+            icon: mdi:alpha
+          - entity: input_number.hexa_ema_grid_w
+            name: EMA corrente (W)
+            icon: mdi:chart-bell-curve
+          - type: divider
+          - type: section
+            label: Half-Slow (freno aumenti su rete instabile)
+          - entity: input_number.hexa_half_slow_stddev_w
+            name: Soglia σ per half-slow (W)
+            icon: mdi:flash-alert
+          - entity: input_number.hexa_half_slow_max_step_a
+            name: Step massimo in half-slow (A)
+            icon: mdi:arrow-collapse-up
+          - type: divider
+          - type: section
+            label: Stato live
+          - entity: sensor.hexa_grid_power_stddev_60s
+            name: σ rete attuale 60s (W)
+            icon: mdi:chart-line
+
+      - type: entities
+        title: ⚙️ Gateway (Balanced)
+        show_header_toggle: false
+        entities:
+          - entity: input_number.hexa_balanced_voltage
+            name: Balanced Voltage
+            icon: mdi:lightning-bolt
+          - entity: input_number.hexa_balanced_current
+            name: Balanced Current
+            icon: mdi:current-dc
+
+      - type: entities
+        title: ⚙️ Sistema e Hardware
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Smart Plug (Entity ID configurabile)
+          - entity: input_text.hexa_gateway_base_url
+          - entity: input_text.hexa_smart_plug_entity
+          - entity: input_text.hexa_smart_plug_power_entity
+          - entity: input_text.hexa_grid_power_entity
+          - entity: input_text.hexa_home_power_entity
+          - entity: input_text.hexa_solar_power_entity
+            name: Smart Plug — Entity ID
+            icon: mdi:power-socket-eu
+          - type: section
+            label: Dati interni (stato automazioni)
+          - entity: input_number.hexa_dynamic_max_current
+            name: Corrente Max Dinamica Attuale
+            icon: mdi:current-ac
+          - entity: input_datetime.hexa_last_increase_time
+            name: Ultima Salita
+            icon: mdi:clock-check
+          - entity: input_datetime.hexa_last_decrease_time
+            name: Ultima Discesa
+            icon: mdi:clock-minus
+          - entity: sensor.hexa_minuti_ultimo_update_stato_sistema
+            name: Min. dall'ultimo aggiornamento
+            icon: mdi:timer-outline
+
+      - type: entities
+        title: ⚙️ Auto ON/OFF
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Auto ON (Alba)
+          - entity: input_number.hexa_auto_on_surplus_w
+            name: Auto ON - Esubero (W)
+            icon: mdi:solar-power
+          - entity: input_number.hexa_auto_on_surplus_min
+            name: Auto ON - Durata (min)
+            icon: mdi:timer
+          - type: divider
+          - type: section
+            label: Auto OFF (Tramonto)
+          - entity: input_number.hexa_auto_off_consumption_w
+            name: Auto OFF - Consumo (W)
+            icon: mdi:transmission-tower
+          - entity: input_number.hexa_auto_off_consumption_min
+            name: Auto OFF - Durata (min)
+            icon: mdi:timer
+
+      - type: entities
+        title: 🔢 Valori Calcolati
+        show_header_toggle: false
+        entities:
+          - entity: sensor.hexa_energy_session
+            name: Energia sessione (kWh)
+            icon: mdi:lightning-bolt
+          - entity: sensor.hexa_energy_daily
+            name: Energia giornaliera (kWh)
+            icon: mdi:solar-power
+          - entity: sensor.hexa_soc_stimato
+            name: SOC Stimato (%)
+            icon: mdi:battery-charging
+          - entity: sensor.hexa_durata_sessione
+            name: Durata sessione (min)
+            icon: mdi:timer-play
+          - entity: input_number.hexa_session_start_v
+            name: V inizio sessione
+            icon: mdi:lightning-bolt-outline
+          - type: divider
+          - entity: sensor.hexa_delta_ampere_now
+            name: Delta Istantaneo
+            icon: mdi:delta
+          - entity: sensor.hexa_delta_ampere_mean_30s
+            name: Delta Medio 30s
+            icon: mdi:chart-line
+          - entity: sensor.hexa_limite_corrente_carica
+            name: Limite Curva V/I
+            icon: mdi:chart-bell-curve-cumulative
+          - entity: sensor.hexa_corrente_max_effettiva
+            name: Corrente Max Effettiva
+            icon: mdi:current-ac
+          - entity: sensor.hexa_target_down
+            name: Target Discesa
+            icon: mdi:arrow-down-thick
+          - entity: sensor.hexa_target_up
+            name: Target Salita
+            icon: mdi:arrow-up-thick
+
+      - type: entities
+        title: 🚩 Flag Sistema
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.hexa_downtrend_active
+            name: Modalità Lenta Attiva
+            icon: mdi:turtle
+          - entity: input_boolean.hexa_mode_finish
+            name: Fine Carica Attiva
+            icon: mdi:battery-heart-variant
+          - entity: input_datetime.hexa_down_since
+            name: Inizio Downtrend
+            icon: mdi:clock-start
+          - entity: input_datetime.hexa_last_increase_time
+            name: Ultima Salita
+            icon: mdi:clock-check
+          - entity: input_datetime.hexa_last_decrease_time
+            name: Ultima Discesa
+            icon: mdi:clock-minus
+
+      - type: entities
+        title: ☀️ Condizioni Solari
+        show_header_toggle: false
+        entities:
+          - entity: sensor.hexa_sun_elevation
+            name: Elevazione Solare
+            icon: mdi:sun-angle
+          - entity: sensor.hexa_cloudiness
+            name: Nuvolosità
+            icon: mdi:cloud-percent
+          - entity: binary_sensor.hexa_pre_tramonto
+            name: Pre-Tramonto (2h)
+            icon: mdi:weather-sunset-down
+          - entity: binary_sensor.hexa_post_alba
+            name: Post-Alba (+10m)
+            icon: mdi:weather-sunset-up
+          - entity: sensor.sun_next_dawn
+            name: Prossima Alba
+            icon: mdi:weather-sunset-up
+          - entity: sensor.sun_next_dusk
+            name: Prossimo Tramonto
+            icon: mdi:weather-sunset-down
+
+  - title: Diagnostica
+    path: diagnostica
+    icon: mdi:stethoscope
+    badges: []
+    cards:
+      - type: entities
+        title: 🔌 Stato API
+        show_header_toggle: false
+        state_color: true
+        entities:
+          - entity: binary_sensor.hexa_dati_validi
+            name: Dati Validi
+            icon: mdi:check-network
+          - entity: input_boolean.hexa_api_error
+            name: Errore API
+            icon: mdi:alert-circle
+          - entity: input_text.hexa_last_error
+            name: Ultimo Errore
+            icon: mdi:alert
+          - type: divider
+          - entity: sensor.hexa_power_gateway
+            name: Gateway Status Code
+            icon: mdi:gateway
+          - entity: input_text.hexa_smart_plug_entity
+            name: Smart Plug Entity (configurata)
+            icon: mdi:power-socket-eu
+
+      - type: entities
+        title: ⚡ Stato Dinamico
+        show_header_toggle: false
+        entities:
+          - entity: sensor.hexa_prossima_azione
+            name: Prossima Azione
+            icon: mdi:lightning-bolt-circle
+          - entity: sensor.hexa_durata_sessione
+            name: Durata Sessione
+            icon: mdi:timer-play
+          - entity: input_number.hexa_ema_grid_w
+            name: EMA Rete (W)
+            icon: mdi:chart-bell-curve
+
+      - type: markdown
+        title: 📡 Dati Raw Gateway
+        content: |
+          ```yaml
+          Voltage Now:    {{ state_attr('sensor.hexa_power_gateway', 'voltageNow') }}V
+          Current Now:    {{ state_attr('sensor.hexa_power_gateway', 'currentNow') }}A
+          MAX Voltage:    {{ state_attr('sensor.hexa_power_gateway', 'MAX_Voltage') }}V
+          MAX Current:    {{ state_attr('sensor.hexa_power_gateway', 'MAX_Current') }}A
+          Battery Level:  {{ state_attr('sensor.hexa_power_gateway', 'batteryLevel') }}%
+          Temp (TNTC1):   {{ state_attr('sensor.hexa_power_gateway', 'tntc1Now') }}°C
+          Smart Plug:     {{ states('input_text.hexa_smart_plug_entity') }}
+          Stato Plug:     {{ states(states('input_text.hexa_smart_plug_entity')) }}
+          ```
+
+      - type: logbook
+        title: 📜 Log Eventi
+        hours_to_show: 12
+        entities:
+          - input_boolean.hexa_master
+          - input_boolean.hexa_solar_automation
+          - input_boolean.hexa_manual_force
+          - input_boolean.hexa_mode_finish
+          - input_boolean.hexa_downtrend_active
+          - binary_sensor.hexa_dati_validi
+
+      - type: entities
+        title: 🤖 Stato Automazioni
+        show_header_toggle: false
+        state_color: true
+        entities:
+          - entity: automation.hexa_master_off
+            name: Master OFF
+            icon: mdi:power-off
+          - entity: automation.hexa_auto_on_disable_manual
+            name: Auto → Disattiva Manuale
+            icon: mdi:robot-off
+          - entity: automation.hexa_manual_on_disable_auto
+            name: Manuale → Disattiva Auto
+            icon: mdi:hand-back-right
+          - entity: automation.hexa_manual_value_change
+            name: Cambio Valori Manuali
+            icon: mdi:tune
+          - type: divider
+          - entity: automation.hexa_solar_amp_increase
+            name: ⬆️ Aumento Corrente FV
+            icon: mdi:trending-up
+          - entity: automation.hexa_reduce_dynamic_max_on_import
+            name: ⬇️ Riduzione su Import Rete
+            icon: mdi:trending-down
+          - entity: automation.hexa_restore_dynamic_max_below_threshold
+            name: 🔄 Ripristino Max Dinamica
+            icon: mdi:restore
+          - entity: automation.hexa_solar_amp_control_optimized
+            name: Enforce Max Dinamica
+            icon: mdi:auto-mode
+          - type: divider
+          - entity: automation.hexa_finish_mode_on
+            name: 🟣 Attiva Fine Carica
+            icon: mdi:battery-heart-variant
+          - entity: automation.hexa_finish_mode_off
+            name: 🟢 Disattiva Fine Carica
+            icon: mdi:battery-check
+          - entity: automation.hexa_finish_charge_control
+            name: 🟣 Controllo Fine Carica
+            icon: mdi:battery-clock
+          - entity: automation.hexa_charge_stop_and_shutdown
+            name: 🛑 Stop e Spegnimento
+            icon: mdi:stop-circle
+          - type: divider
+          - entity: automation.hexa_slow_ab_counter_tick
+            name: 🐢 Conteggio Sbalzi AB
+            icon: mdi:counter
+          - entity: automation.hexa_slow_ab_reset_window_expired
+            name: Reset Finestra AB
+            icon: mdi:refresh
+          - entity: automation.hexa_slow_activate_on_ab
+            name: 🐢 Attiva Modalità Lenta
+            icon: mdi:turtle
+          - entity: automation.hexa_slow_timeout_off
+            name: Timeout Modalità Lenta
+            icon: mdi:timer-off
+          - type: divider
+          - entity: automation.hexa_auto_off_before_dusk_consumption
+            name: 🌇 Auto OFF Pre-Tramonto
+            icon: mdi:weather-sunset-down
+          - entity: automation.hexa_auto_on_after_dawn_surplus
+            name: 🌅 Auto ON Post-Alba
+            icon: mdi:weather-sunset-up
+          - type: divider
+          - entity: automation.hexa_ema_aggiornamento
+            name: 📡 Aggiornamento EMA
+            icon: mdi:chart-bell-curve
+          - entity: automation.hexa_session_avvio
+            name: 🆕 Inizio Sessione
+            icon: mdi:timer-play
+
+      - type: markdown
+        title: 🟦 Stabilità FV/Rete (Modalità Lenta)
+        content: |
+          {% set sd = states('sensor.hexa_grid_power_stddev_60s') | float(0) %}
+          {% set thr = states('input_number.hexa_slow_min_swing_w') | float(150) %}
+          {% if sd >= (thr*1.5) %}
+            <font color="red"><b>Instabilità ALTA</b></font> — σ60s={{ sd|round(0) }}W (soglia {{ thr|round(0) }}W)
+          {% elif sd >= thr %}
+            <font color="orange"><b>Instabilità MEDIA</b></font> — σ60s={{ sd|round(0) }}W (soglia {{ thr|round(0) }}W)
+          {% else %}
+            <font color="green"><b>Stabile</b></font> — σ60s={{ sd|round(0) }}W (soglia {{ thr|round(0) }}W)
+          {% endif %}
+          <br>
+          <b>AB Count:</b> {{ states('input_number.hexa_slow_ab_count') }}
+          &nbsp;|&nbsp; <b>Slow:</b> {{ states('input_boolean.hexa_downtrend_active') }}
+          &nbsp;|&nbsp; <b>Inizio:</b> {{ states('input_datetime.hexa_down_since') }}
+
+      - type: entities
+        title: 🐢 Modalità Lenta (Anti-Sbalzi)
+        show_header_toggle: false
+        state_color: true
+        entities:
+          - entity: input_boolean.hexa_downtrend_active
+            name: Modalità Lenta Attiva
+            icon: mdi:turtle
+          - entity: input_datetime.hexa_down_since
+            name: Inizio Modalità Lenta
+            icon: mdi:clock-start
+          - entity: input_number.hexa_slow_ab_count
+            name: Conteggio Sbalzi AB
+            icon: mdi:counter
+          - entity: sensor.hexa_grid_power_stddev_60s
+            name: Deviazione rete 60s (σ)
+            icon: mdi:chart-line
+          - entity: input_number.hexa_slow_min_swing_w
+            name: Soglia σ minima (W)
+            icon: mdi:target
+          - entity: input_number.hexa_slow_ab_threshold
+            name: Soglia AB (count)
+            icon: mdi:swap-vertical
+          - entity: input_number.hexa_slow_tc_min
+            name: Durata Slow (min)
+            icon: mdi:timer-sand
+
+      - type: history-graph
+        title: 📉 Instabilità Rete (2h)
+        hours_to_show: 2
+        refresh_interval: 30
+        entities:
+          - entity: sensor.hexa_grid_power_w
+            name: Potenza Rete
+          - entity: sensor.hexa_grid_power_stddev_60s
+            name: σ 60s
+          - entity: input_boolean.hexa_downtrend_active
+            name: Slow ON
+
+  - title: Comandi
+    path: comandi
+    icon: mdi:gesture-tap-button
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          # 🎛️ Comandi Rapidi Hexa
+          Usa questi pulsanti per azioni rapide sul sistema.
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: RIAVVIO COMPLETO
+            icon: mdi:restart
+            tap_action:
+              action: call-service
+              service: script.hexa_stop_sequence
+            hold_action:
+              action: none
+
+          - type: button
+            name: RESET ERRORI
+            icon: mdi:refresh
+            tap_action:
+              action: call-service
+              service: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.hexa_api_error
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: MODALITÀ ECO (3A)
+            icon: mdi:leaf
+            tap_action:
+              action: call-service
+              service: input_number.set_value
+              target:
+                entity_id: input_number.set_hexa_amps
+              data:
+                value: 3
+
+          - type: button
+            name: MODALITÀ MEDIA (10A)
+            icon: mdi:speedometer-medium
+            tap_action:
+              action: call-service
+              service: input_number.set_value
+              target:
+                entity_id: input_number.set_hexa_amps
+              data:
+                value: 10
+
+          - type: button
+            name: MODALITÀ MAX (20A)
+            icon: mdi:speedometer
+            tap_action:
+              action: call-service
+              service: input_number.set_value
+              target:
+                entity_id: input_number.set_hexa_amps
+              data:
+                value: 20
+
+      - type: entities
+        title: 📜 Script Sistema
+        show_header_toggle: false
+        entities:
+          - entity: script.hexa_stop_sequence
+            name: Sequenza Spegnimento
+            icon: mdi:power-off
+            tap_action:
+              action: call-service
+              service: script.turn_on
+              target:
+                entity_id: script.hexa_stop_sequence
+          - entity: script.hexa_send_manual
+            name: Invio Parametri Manuali
+            icon: mdi:send
+            tap_action:
+              action: call-service
+              service: script.turn_on
+              target:
+                entity_id: script.hexa_send_manual
+
+      - type: markdown
+        title: ℹ️ Info Sistema
+        content: |
+          ### Come funziona
+          
+          **Modalità Automatica:**
+          - Segue la produzione solare in tempo reale
+          - Deadband asimmetrica: scende veloce (dopo cooldown), sale graduale (con cooldown)
+          - Modalità LENTA quando si rilevano troppi sbalzi AB in finestra TX
+          - Auto-ON dopo alba con esubero configurabile
+          - Auto-OFF prima tramonto con consumo configurabile
+          - Rispetta sempre i limiti MAX configurati
+          
+          **Curva Fine Carica:**
+          - Sotto **{{ states('input_number.hexa_curve_v1') }}V** → corrente piena ({{ states('input_number.hexa_max_current')|int }}A)
+          - Da **{{ states('input_number.hexa_curve_v1') }}V** a **{{ states('input_number.hexa_curve_v2') }}V** → riduzione lineare fino a 2A
+          - Da **{{ states('input_number.hexa_curve_v2') }}V** a **{{ states('input_number.hexa_charge_stop_v') }}V** → riduzione lineare fino a 1A
+          - Sopra **{{ states('input_number.hexa_charge_stop_v') }}V** → 🛑 spegnimento automatico
+          
+          **SOC Batteria (16S LiFePO4 — calibrazione BMS):**
+          | Tensione Pack | SOC |
+          |---|---|
+          | ≥ 53.60 V | 100% |
+          | 53.28 V | 90% |
+          | 53.20 V | 70% |
+          | 52.82 V | 50% |
+          | 52.48 V | 30–40% (plateau) |
+          | 51.51 V | 10–20% (plateau) |
+          | 43.20 V | 0% (minimo BMS) |
+          
+          **Parametri Chiave:**
+          - **Max Tensione:** {{ states('input_number.hexa_max_voltage') }}V
+          - **Max Corrente:** {{ states('input_number.hexa_max_current') }}A
+          - **Deadband DOWN:** {{ states('input_number.hexa_deadband_down_w') }}W
+          - **Deadband UP:** {{ states('input_number.hexa_deadband_up_w') }}W
+          - **Cooldown UP:** {{ states('input_number.hexa_cooldown_up_sec') }}s
+          - **Cooldown DOWN:** {{ states('input_number.hexa_cooldown_down_sec') }}s
+          - **Massimo salto A:** {{ states('input_number.hexa_max_step_amp') }}A

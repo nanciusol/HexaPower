@@ -1,13 +1,5 @@
 \# HEXA Power Community Edition
 
-Gestione dei charger cinesi Hexa
-
-
-
-
-
-
-
 Sistema semplice e open-source per controllare caricatore HEXA da Home Assistant.
 
 
@@ -36,7 +28,7 @@ Licenza: GNU GPL v3
 
 \- Nessuna dipendenza proprietaria
 
-
+\- Il sistema prevede una presa smart per lo spegnimento (sonoff)
 
 \---
 

@@ -1,0 +1,2010 @@
+########################################
+# HEXA POWER - PACKAGE PORTABILE v2.8
+# File: /config/packages/hexa_power.yaml
+# Modifiche integrate:
+# - correzione anti-sbalzi con conteggio oscillazioni reali entro finestra
+# - riduzione solo della corrente massima dinamica
+# - ripristino al max default sotto soglia down
+# - curva fine carica corretta: a 55.0V la corrente scende a 2A
+# - statistics max_age in formato stringa per compatibilità
+# v2.7:
+# - [P3]  Fine carica: forza 1A se importazione rete rilevata
+# - [P4]  EMA surplus: media mobile esponenziale per step aumento
+# - [P6]  Half-slow: limita step aumento se rete instabile (σ)
+# - [P7]  Contatori kWh: integration + utility_meter sessione/giornaliero
+# - [P10] Tracciamento sessione: durata, V inizio, reset energia
+# - [P11] SOC stimato da batteryLevel o interpolazione tensione
+# - [P12] Sensor "Prossima Azione" con countdown e half-slow indicator
+########################################
+
+input_boolean:
+  hexa_master:
+    name: "Hexa Sistema Completo"
+    icon: mdi:power-cycle
+
+  hexa_solar_automation:
+    name: "Automazione Solare Hexa"
+    icon: mdi:robot-confused
+
+  hexa_manual_force:
+    name: "Forzatura Manuale Hexa"
+    icon: mdi:hand-back-left
+
+  hexa_downtrend_active:
+    name: "Hexa Downtrend Active"
+    icon: mdi:trending-down
+
+  hexa_api_error:
+    name: "Hexa API Errore"
+    icon: mdi:alert-circle
+
+  hexa_mode_finish:
+    name: "Hexa Modalità Fine Carica"
+    icon: mdi:battery-heart-variant
+
+input_number:
+  set_hexa_volts:
+    name: "Imposta Volts (utente)"
+    min: 40
+    max: 60
+    step: 0.1
+    initial: 55.6
+    unit_of_measurement: "V"
+    mode: box
+
+  set_hexa_amps:
+    name: "Imposta Ampere (manuale)"
+    min: 0
+    max: 30
+    step: 0.1
+    initial: 2
+    unit_of_measurement: "A"
+    mode: box
+
+  hexa_max_voltage:
+    name: "Tensione Massima Desiderata"
+    min: 40
+    max: 60
+    step: 0.1
+    initial: 55.6
+    unit_of_measurement: "V"
+    mode: box
+
+  hexa_max_current:
+    name: "Corrente Massima Desiderata"
+    min: 0
+    max: 30
+    step: 0.5
+    initial: 30
+    unit_of_measurement: "A"
+    mode: box
+
+  hexa_dynamic_max_current:
+    name: "Corrente Max Dinamica Hexa"
+    min: 0
+    max: 30
+    step: 1
+    initial: 30
+    unit_of_measurement: "A"
+    mode: box
+
+  hexa_watt_per_amp:
+    name: "Watt per Ampere (conversione)"
+    min: 40
+    max: 70
+    step: 0.1
+    initial: 60
+    unit_of_measurement: "W/A"
+    mode: box
+
+  hexa_deadband_down_w:
+    name: "Deadband DOWN (Watt)"
+    min: 0
+    max: 200
+    step: 5
+    initial: 5
+    unit_of_measurement: "W"
+    mode: box
+
+  hexa_deadband_up_w:
+    name: "Deadband UP (Watt)"
+    min: 0
+    max: 300
+    step: 5
+    initial: 100
+    unit_of_measurement: "W"
+    mode: box
+
+  hexa_cooldown_up_sec:
+    name: "Cooldown Salita (secondi)"
+    min: 10
+    max: 300
+    step: 10
+    initial: 30
+    unit_of_measurement: "s"
+    mode: box
+
+  hexa_cooldown_down_sec:
+    name: "Cooldown Discesa (secondi)"
+    min: 1
+    max: 120
+    step: 1
+    initial: 5
+    unit_of_measurement: "s"
+    mode: box
+
+  hexa_downtrend_timeout_min:
+    name: "Timeout Downtrend (minuti)"
+    min: 1
+    max: 15
+    step: 0.5
+    initial: 5
+    unit_of_measurement: "min"
+    mode: box
+
+  hexa_min_amp_normal:
+    name: "Ampere Minimo Normale"
+    min: 0
+    max: 10
+    step: 0.1
+    initial: 1
+    unit_of_measurement: "A"
+    mode: box
+
+  hexa_max_step_amp:
+    name: "Massimo Salto Ampere"
+    min: 1
+    max: 30
+    step: 0.5
+    initial: 10
+    unit_of_measurement: "A"
+    mode: box
+
+  hexa_balanced_voltage:
+    name: "Balanced Voltage"
+    min: 40
+    max: 60
+    step: 0.1
+    initial: 54.6
+    unit_of_measurement: "V"
+    mode: box
+
+  hexa_balanced_current:
+    name: "Balanced Current"
+    min: 0
+    max: 30
+    step: 0.1
+    initial: 1
+    unit_of_measurement: "A"
+    mode: box
+
+  hexa_auto_on_surplus_w:
+    name: "Auto ON - Esubero (W)"
+    min: 50
+    max: 2000
+    step: 10
+    initial: 300
+    unit_of_measurement: "W"
+    mode: box
+
+  hexa_auto_on_surplus_min:
+    name: "Auto ON - Durata (min)"
+    min: 1
+    max: 10
+    step: 0.5
+    initial: 2
+    unit_of_measurement: "min"
+    mode: box
+
+  hexa_auto_off_consumption_w:
+    name: "Auto OFF - Consumo (W)"
+    min: 50
+    max: 2000
+    step: 10
+    initial: 150
+    unit_of_measurement: "W"
+    mode: box
+
+  hexa_auto_off_consumption_min:
+    name: "Auto OFF - Durata (min)"
+    min: 1
+    max: 15
+    step: 0.5
+    initial: 3
+    unit_of_measurement: "min"
+    mode: box
+
+  hexa_charge_stop_v:
+    name: "Stop carica (V)"
+    min: 53.40
+    max: 58
+    step: 0.01
+    mode: box
+    initial: 55.6
+    unit_of_measurement: "V"
+
+
+  hexa_curve_v1:
+    name: "Curva V1 - Inizio riduzione (V)"
+    min: 50.0
+    max: 57.0
+    step: 0.05
+    initial: 54.3
+    unit_of_measurement: "V"
+    mode: box
+
+  hexa_curve_v2:
+    name: "Curva V2 - Fine prima rampa / 2A (V)"
+    min: 50.0
+    max: 57.0
+    step: 0.05
+    initial: 55
+    unit_of_measurement: "V"
+    mode: box
+
+  hexa_charge_stop_hold_s:
+    name: "Hold stop carica (s)"
+    min: 10
+    max: 600
+    step: 5
+    mode: box
+    initial: 120
+    unit_of_measurement: "s"
+
+  hexa_charge_stop_i_a:
+    name: "Corrente max per stop (A)"
+    min: 1
+    max: 10
+    step: 1
+    mode: box
+    initial: 2
+    unit_of_measurement: "A"
+
+  hexa_slow_min_swing_w:
+    name: "Valore minimo sbalzo (W)"
+    min: 0
+    max: 1000
+    step: 10
+    mode: box
+    initial: 150
+    unit_of_measurement: "W"
+
+  hexa_voltage_drop_delta_max_a:
+    name: "Riduzione massima ampere per ciclo"
+    min: 1
+    max: 10
+    step: 1
+    mode: box
+    initial: 2
+    unit_of_measurement: "A"
+
+  hexa_slow_lookback_sec:
+    name: "Lookback delta minimo (s)"
+    min: 5
+    max: 120
+    step: 5
+    mode: box
+    initial: 30
+    unit_of_measurement: "s"
+
+  hexa_slow_tx_sec:
+    name: "Finestra sbalzi TX (s)"
+    min: 10
+    max: 300
+    step: 10
+    mode: box
+    initial: 60
+    unit_of_measurement: "s"
+
+  hexa_slow_tc_min:
+    name: "Durata modalità lenta TC (min)"
+    min: 1
+    max: 30
+    step: 1
+    mode: box
+    initial: 2
+    unit_of_measurement: "min"
+
+  hexa_slow_ab_threshold:
+    name: "Soglia sbalzi AB"
+    min: 1
+    max: 20
+    step: 1
+    mode: box
+    initial: 4
+
+  hexa_slow_min_base_a:
+    name: "Corrente minima base (A)"
+    min: 1
+    max: 10
+    step: 1
+    mode: box
+    initial: 1
+    unit_of_measurement: "A"
+
+  hexa_last_voltage_v:
+    name: "Last Battery Voltage (V)"
+    min: 40
+    max: 60
+    step: 0.01
+    mode: box
+    initial: 52.00
+    unit_of_measurement: "V"
+
+  hexa_last_grid_w:
+    name: "Last Grid Power (W)"
+    min: -20000
+    max: 20000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "W"
+
+  hexa_slow_ab_count:
+    name: "Slow AB Count"
+    min: 0
+    max: 50
+    step: 1
+    mode: box
+    initial: 0
+
+  hexa_slow_hold_a:
+    name: "Slow HOLD Ampere"
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    initial: 1
+    unit_of_measurement: "A"
+
+  # ── [P4] EMA flusso rete ──────────────────────────────────
+  hexa_ema_alpha:
+    name: "EMA Alpha (reattività surplus)"
+    min: 0.05
+    max: 0.9
+    step: 0.05
+    initial: 0.3
+    mode: box
+
+  hexa_ema_grid_w:
+    name: "EMA Flusso Rete — stato interno (W)"
+    min: -20000
+    max: 20000
+    step: 0.1
+    initial: 0
+    unit_of_measurement: "W"
+    mode: box
+
+  # ── [P6] Half-Slow ───────────────────────────────────────
+  hexa_half_slow_stddev_w:
+    name: "Half-Slow: soglia σ rete (W)"
+    min: 10
+    max: 500
+    step: 5
+    initial: 80
+    unit_of_measurement: "W"
+    mode: box
+
+  hexa_half_slow_max_step_a:
+    name: "Half-Slow: step massimo (A)"
+    min: 1
+    max: 10
+    step: 1
+    initial: 5
+    unit_of_measurement: "A"
+    mode: box
+
+  # ── [P10] Tracciamento sessione ───────────────────────────
+  hexa_session_start_v:
+    name: "Tensione inizio sessione (V)"
+    min: 40
+    max: 60
+    step: 0.01
+    initial: 52.0
+    unit_of_measurement: "V"
+    mode: box
+
+input_datetime:
+  hexa_last_increase_time:
+    name: "Hexa Last Increase Time"
+    has_date: true
+    has_time: true
+
+  hexa_down_since:
+    name: "Hexa Down Since"
+    has_date: true
+    has_time: true
+
+  hexa_last_manual_time:
+    name: "Hexa Last Manual Command"
+    has_date: true
+    has_time: true
+
+  hexa_last_decrease_time:
+    name: "Hexa Last Decrease Time"
+    has_date: true
+    has_time: true
+
+  hexa_slow_last_event_time:
+    name: "Hexa Slow Last Event Time"
+    has_date: true
+    has_time: true
+
+  hexa_session_start_time:
+    name: "Hexa Session Start Time"
+    has_date: true
+    has_time: true
+
+input_text:
+  hexa_stato_sistema:
+    name: "Stato Sincronizzazione"
+    initial: "In Attesa"
+    max: 255
+
+  hexa_last_error:
+    name: "Ultimo Errore API"
+    initial: "-"
+    max: 255
+
+  hexa_slow_last_dir:
+    name: "Slow Last Direction"
+    initial: "INIT"
+    max: 32
+
+  hexa_gateway_base_url:
+    name: "Hexa Gateway - URL base"
+    initial: "http://192.168.4.1"
+    max: 128
+
+  hexa_smart_plug_entity:
+    name: "Smart Plug - Entity ID"
+    initial: "switch.tua_presa_hexa"
+    max: 128
+
+  hexa_smart_plug_power_entity:
+    name: "Smart Plug Power - Entity ID"
+    initial: "sensor.tua_presa_hexa_power"
+    max: 128
+
+  hexa_grid_power_entity:
+    name: "Rete/Contatore - Entity ID Watt"
+    initial: "sensor.tuo_contatore_rete_power"
+    max: 128
+
+  hexa_home_power_entity:
+    name: "Consumo Casa - Entity ID Watt"
+    initial: "sensor.tuo_consumo_casa_power"
+    max: 128
+
+  hexa_solar_power_entity:
+    name: "Produzione Solare - Entity ID Watt"
+    initial: "sensor.tua_produzione_solare_power"
+    max: 128
+
+  hexa_weather_entity:
+    name: "Meteo - Entity ID opzionale"
+    initial: "weather.casa"
+    max: 128
+
+sensor:
+  - platform: rest
+    name: "Hexa Power Gateway"
+    resource_template: "{{ states('input_text.hexa_gateway_base_url') | trim }}/api/chargeStatus"
+    scan_interval: 10
+    timeout: 10
+    value_template: "{{ value_json.Charge_Stage | int(0) }}"
+    json_attributes:
+      - Status_Code
+      - Bat_Type
+      - Charge_Segs
+      - faultStatus
+      - voltageNow
+      - currentNow
+      - MAX_Voltage
+      - MAX_Current
+      - chgcapacity
+      - tntc1Now
+      - tntc2Now
+      - batteryLevel
+      - GET_calibrated
+      - Bus_voltage
+      - two_voltage
+      - three_current
+      - Version
+      - Fan_Speed
+
+  - platform: statistics
+    name: "Hexa Grid Power Mean 30s"
+    entity_id: sensor.hexa_grid_power_w
+    state_characteristic: mean
+    max_age: "00:00:30"
+
+  - platform: statistics
+    name: "Hexa Grid Power Stddev 60s"
+    entity_id: sensor.hexa_grid_power_w
+    state_characteristic: standard_deviation
+    max_age: "00:01:00"
+
+  - platform: statistics
+    name: "Hexa Voltage Mean 30s"
+    entity_id: sensor.hexa_tensione_attuale
+    state_characteristic: mean
+    max_age: "00:00:30"
+
+  # ── [P7] Integrazione W → kWh ──────────────────────────
+  - platform: integration
+    source: sensor.hexa_potenza_attuale
+    name: "Hexa Energia Integrale"
+    unique_id: hexa_energy_integral
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: trapezoidal
+
+rest_command:
+  invia_parametri_hexa:
+    url: "{{ states('input_text.hexa_gateway_base_url') | trim }}/api/send_data"
+    method: POST
+    content_type: "application/json"
+    timeout: 15
+    payload: >-
+      {
+        "voltageValue":"{{ v_val | default(53) | float | round(1) }}",
+        "currentValue":"{{ i_val | default(3) | int }}",
+        "accessibilityStatus":"{{ access | default('0') }}",
+        "balancedVoltage":"{{ states('input_number.hexa_balanced_voltage') | float(54.4) | round(1) }}",
+        "balancedCurrent":"{{ states('input_number.hexa_balanced_current') | float(1) | round(1) }}",
+        "mode":"2"
+      }
+
+# ── [P7] Contatori energia sessione/giornaliero ──────────────
+utility_meter:
+  hexa_energy_session:
+    source: sensor.hexa_energia_integrale
+
+  hexa_energy_daily:
+    source: sensor.hexa_energia_integrale
+    cycle: daily
+
+template:
+  # Wrapper portabili: l'utente cambia solo gli input_text sopra.
+  # Convenzione rete: positivo = importazione/prelievo dalla rete; negativo = esportazione/surplus.
+  - trigger:
+      - platform: time_pattern
+        seconds: "/5"
+      - platform: state
+        entity_id:
+          - input_text.hexa_grid_power_entity
+          - input_text.hexa_smart_plug_power_entity
+          - input_text.hexa_home_power_entity
+          - input_text.hexa_solar_power_entity
+    sensor:
+      - name: "Hexa Grid Power W"
+        unique_id: hexa_grid_power_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set e = states('input_text.hexa_grid_power_entity') | trim %}
+          {{ states(e) | float(0) if e else 0 }}
+
+      - name: "Hexa Smart Plug Power W"
+        unique_id: hexa_smart_plug_power_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set e = states('input_text.hexa_smart_plug_power_entity') | trim %}
+          {{ states(e) | float(0) if e else 0 }}
+
+      - name: "Hexa Home Power W"
+        unique_id: hexa_home_power_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set e = states('input_text.hexa_home_power_entity') | trim %}
+          {{ states(e) | float(0) if e else 0 }}
+
+      - name: "Hexa Solar Power W"
+        unique_id: hexa_solar_power_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set e = states('input_text.hexa_solar_power_entity') | trim %}
+          {{ states(e) | float(0) if e else 0 }}
+
+  - sensor:
+      - name: "Hexa Tensione Attuale"
+        unique_id: hexa_v_now
+        unit_of_measurement: "V"
+        device_class: voltage
+        state: "{{ state_attr('sensor.hexa_power_gateway', 'voltageNow') | float(0) | round(1) }}"
+
+      - name: "Hexa Corrente Attuale"
+        unique_id: hexa_i_now
+        unit_of_measurement: "A"
+        device_class: current
+        state: "{{ state_attr('sensor.hexa_power_gateway', 'currentNow') | float(0) | round(1) }}"
+
+      - name: "Hexa Tensione Impostata"
+        unique_id: hexa_v_set
+        unit_of_measurement: "V"
+        device_class: voltage
+        state: "{{ state_attr('sensor.hexa_power_gateway', 'MAX_Voltage') | float(0) | round(1) }}"
+
+      - name: "Hexa Corrente Impostata"
+        unique_id: hexa_i_set
+        unit_of_measurement: "A"
+        device_class: current
+        state: "{{ state_attr('sensor.hexa_power_gateway', 'MAX_Current') | float(0) | round(1) }}"
+
+      - name: "Hexa Temperatura"
+        unique_id: hexa_temp
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: "{{ state_attr('sensor.hexa_power_gateway', 'tntc1Now') | int(0) }}"
+
+      - name: "Hexa Potenza Attuale"
+        unique_id: hexa_power_now
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set v = state_attr('sensor.hexa_power_gateway', 'voltageNow') | float(0) %}
+          {% set i = state_attr('sensor.hexa_power_gateway', 'currentNow') | float(0) %}
+          {{ (v * i) | round(0) | int }}
+
+      - name: "Hexa Delta Ampere Now"
+        unique_id: hexa_delta_amp_now
+        unit_of_measurement: "A"
+        state: >
+          {% set g = states('sensor.hexa_grid_power_w') | float(0) %}
+          {% set w_per_a = states('input_number.hexa_watt_per_amp') | float(50) %}
+          {{ ((-g) / w_per_a) | round(1) }}
+
+      - name: "Hexa Delta Ampere Mean 30s"
+        unique_id: hexa_delta_amp_mean_30s
+        unit_of_measurement: "A"
+        state: >
+          {% set g = states('sensor.hexa_grid_power_mean_30s') | float(0) %}
+          {% set w_per_a = states('input_number.hexa_watt_per_amp') | float(50) %}
+          {{ ((-g) / w_per_a) | round(1) }}
+
+      - name: "Hexa Limite Corrente Carica"
+        unique_id: hexa_charge_i_cap
+        unit_of_measurement: "A"
+        device_class: current
+        state: >
+          {% set v = states('sensor.hexa_voltage_mean_30s') | float(state_attr('sensor.hexa_power_gateway','voltageNow') | float(0)) %}
+          {% set i_full = states('input_number.hexa_max_current') | float(30) %}
+          {% set v1 = states('input_number.hexa_curve_v1') | float(54.20) %}
+          {% set v2 = states('input_number.hexa_curve_v2') | float(55.10) %}
+          {% set v_stop = states('input_number.hexa_charge_stop_v') | float(55) %}
+
+          {#
+            Curva tensione/corrente (2 rampe configurabili):
+            - i_full  sotto v1  (default 54.20V)
+            - i_full -> 2A  da v1 a v2  (default 55.10V)
+            - 2A -> 1A      da v2 a v_stop  (default 54.80V)
+            - 1A fisso      sopra v_stop
+          #}
+          {% if v < v1 %}
+            {% set cap = i_full %}
+          {% elif v2 > v1 and v < v2 %}
+            {% set cap = i_full - ((i_full - 2) * ((v - v1) / (v2 - v1))) %}
+          {% elif v_stop > v2 and v < v_stop %}
+            {% set cap = 2 - (1 * ((v - v2) / (v_stop - v2))) %}
+          {% else %}
+            {% set cap = 1 %}
+          {% endif %}
+
+          {{ [[cap, i_full] | min, 1] | max | round(0, 'floor') | int(1) }}
+
+      - name: "Hexa Corrente Max Effettiva"
+        unique_id: hexa_effective_max_current
+        unit_of_measurement: "A"
+        device_class: current
+        state: >
+          {% set i_default = states('input_number.hexa_max_current') | float(30) %}
+          {% set i_dynamic = states('input_number.hexa_dynamic_max_current') | float(i_default) %}
+          {% set i_cap = states('sensor.hexa_limite_corrente_carica') | float(999) %}
+          {% set raw = [i_default, i_dynamic, i_cap] | min | round(0,'floor') | int(1) %}
+          {{ [raw, 1] | max }}
+
+      - name: "Hexa Target Down"
+        unique_id: hexa_target_down
+        unit_of_measurement: "A"
+        state: >
+          {% set a_set = states('sensor.hexa_corrente_impostata') | float(0) %}
+          {% set max_current = states('sensor.hexa_corrente_max_effettiva') | float(30) %}
+          {% if a_set > max_current %}
+            {{ max_current | round(0,'floor') | int(0) }}
+          {% else %}
+            {{ a_set | round(0,'floor') | int(0) }}
+          {% endif %}
+
+      - name: "Hexa Target Up"
+        unique_id: hexa_target_up
+        unit_of_measurement: "A"
+        state: >
+          {% set a_set = states('sensor.hexa_corrente_impostata') | float(0) %}
+          {% set max_current = states('sensor.hexa_corrente_max_effettiva') | float(30) %}
+          {% if a_set > max_current %}
+            {{ max_current | round(0,'floor') | int(0) }}
+          {% else %}
+            {{ a_set | round(0,'floor') | int(0) }}
+          {% endif %}
+
+      - name: "Hexa Ampere Calcolati"
+        unique_id: hexa_amp_calc
+        unit_of_measurement: "A"
+        state: >
+          {% set a_set = states('sensor.hexa_corrente_impostata') | float(0) %}
+          {% set i_eff = states('sensor.hexa_corrente_max_effettiva') | float(a_set) %}
+          {{ [a_set, i_eff] | min | round(0,'floor') | int(0) }}
+
+      - name: "Hexa Stato Dettagliato"
+        unique_id: hexa_stato_dettagliato
+        state: >
+          {% if is_state('input_boolean.hexa_master', 'off') %}
+            Sistema OFF
+          {% elif is_state('input_boolean.hexa_manual_force', 'on') %}
+            Manuale: {{ states('sensor.hexa_corrente_impostata') }}A @ {{ states('sensor.hexa_tensione_impostata') }}V
+          {% elif is_state('input_boolean.hexa_solar_automation', 'off') %}
+            Auto DISABILITATA
+          {% elif is_state('binary_sensor.hexa_dati_validi', 'off') %}
+            Dati NON validi
+          {% elif is_state(states('input_text.hexa_smart_plug_entity'), 'off') %}
+            Presa OFF
+          {% elif is_state('input_boolean.hexa_downtrend_active', 'on') %}
+            Modalità LENTA (downtrend)
+          {% else %}
+            Inseguimento ATTIVO
+          {% endif %}
+
+      - name: "Hexa Sun Elevation"
+        unique_id: hexa_sun_elevation
+        unit_of_measurement: "°"
+        state: "{{ state_attr('sun.sun', 'elevation') | float(0) | round(1) }}"
+
+      - name: "Hexa Cloudiness"
+        unique_id: hexa_cloudiness
+        unit_of_measurement: "%"
+        state: >
+          {% set condition = states(states('input_text.hexa_weather_entity')) %}
+          {% if condition in ['sunny', 'clear'] %}
+            0
+          {% elif condition in ['partlycloudy'] %}
+            40
+          {% elif condition in ['cloudy'] %}
+            70
+          {% elif condition in ['rainy', 'pouring', 'snowy'] %}
+            100
+          {% else %}
+            50
+          {% endif %}
+      # ── [P11] SOC stimato — curva reale da BMS 16S LiFePO4 ──────
+      # Dati BMS (18/03/2026): 16 celle, 100Ah
+      # Tensioni pack calcolate: cellmV × 16 / 1000
+      # Nota: 30% e 40% → stessa V (52.48V) = plateau LiFePO4
+      #        10% e 20% → quasi identica (~51.51V) = plateau basso
+      - name: "Hexa SOC Stimato"
+        unique_id: hexa_soc_estimated
+        unit_of_measurement: "%"
+        icon: mdi:battery-charging
+        availability: >
+          {{ states('sensor.hexa_tensione_attuale') not in ['unknown','unavailable','']
+             and states('sensor.hexa_tensione_attuale') | float(0) > 0 }}
+        state: >
+          {#
+            Due curve separate:
+            - IN CARICA (I > 0.5A): tensione terminale = OCV + I×R_int → più alta
+              Calibrata su: 55.40V = 97% (confermato utente 18/03/2026)
+            - A RIPOSO  (I ≈ 0A):  tensione OCV da breakpoint BMS reali
+            Tensione: preferisce mean30s se disponibile, altronde istantanea
+          #}
+          {% set v_mean = states('sensor.hexa_voltage_mean_30s') | float(0) %}
+          {% set v_now  = states('sensor.hexa_tensione_attuale')  | float(0) %}
+          {% set v = v_mean if v_mean > 40 else v_now %}
+          {% set i = states('sensor.hexa_corrente_attuale') | float(0) %}
+          {% if i > 0.5 %}
+            {# ── Curva CARICA (tensione terminale) ── #}
+            {# Anchor confermati: 55.40V=97%, 55.00V=95%, 53.73V=88% (18/03/2026) #}
+            {% if v >= 57.60 %}
+              100
+            {% elif v >= 55.80 %}
+              {{ (99 + (v - 55.80) / (57.60 - 55.80) * 1) | round(0) | int }}
+            {% elif v >= 55.40 %}
+              {{ (97 + (v - 55.40) / (55.80 - 55.40) * 2) | round(0) | int }}
+            {% elif v >= 55.35 %}
+              {{ (96 + (v - 55.35) / (55.40 - 55.35) * 1) | round(0) | int }}
+            {% elif v >= 55.00 %}
+              {{ (95 + (v - 55.00) / (55.35 - 55.00) * 1) | round(0) | int }}
+            {% elif v >= 53.73 %}
+              {{ (88 + (v - 53.73) / (55.00 - 53.73) * 7) | round(0) | int }}
+            {% elif v >= 52.80 %}
+              {{ (55 + (v - 52.80) / (53.73 - 52.80) * 33) | round(0) | int }}
+            {% elif v >= 52.48 %}
+              {{ (40 + (v - 52.48) / (52.80 - 52.48) * 15) | round(0) | int }}
+            {% elif v >= 51.51 %}
+              {{ (18 + (v - 51.51) / (52.48 - 51.51) * 22) | round(0) | int }}
+            {% elif v >= 43.20 %}
+              {{ ((v - 43.20) / (51.51 - 43.20) * 18) | round(0) | int }}
+            {% else %}
+              0
+            {% endif %}
+          {% else %}
+            {# ── Curva OCV/RIPOSO (breakpoint BMS reali) ── #}
+            {% if v >= 53.60 %}
+              100
+            {% elif v >= 53.28 %}
+              {{ (90 + (v - 53.28) / (53.60 - 53.28) * 10) | round(0) | int }}
+            {% elif v >= 53.26 %}
+              {{ (80 + (v - 53.26) / (53.28 - 53.26) * 10) | round(0) | int }}
+            {% elif v >= 53.20 %}
+              {{ (70 + (v - 53.20) / (53.26 - 53.20) * 10) | round(0) | int }}
+            {% elif v >= 53.15 %}
+              {{ (60 + (v - 53.15) / (53.20 - 53.15) * 10) | round(0) | int }}
+            {% elif v >= 52.82 %}
+              {{ (50 + (v - 52.82) / (53.15 - 52.82) * 10) | round(0) | int }}
+            {% elif v >= 52.48 %}
+              {{ (35 + (v - 52.48) / (52.82 - 52.48) * 15) | round(0) | int }}
+            {% elif v >= 51.51 %}
+              {{ (15 + (v - 51.51) / (52.48 - 51.51) * 20) | round(0) | int }}
+            {% elif v >= 43.20 %}
+              {{ ((v - 43.20) / (51.51 - 43.20) * 15) | round(0) | int }}
+            {% else %}
+              0
+            {% endif %}
+          {% endif %}
+
+  - binary_sensor:
+      - name: "Hexa Dati Validi"
+        unique_id: hexa_dati_validi
+        device_class: connectivity
+        state: >
+          {{ states('sensor.hexa_power_gateway') not in ['unknown','unavailable']
+             and state_attr('sensor.hexa_power_gateway','currentNow') is not none }}
+
+      - name: "Hexa Pre-Tramonto"
+        unique_id: hexa_pre_tramonto
+        state: >
+          {% set dusk = as_datetime(states('sensor.sun_next_dusk')) %}
+          {{ dusk is not none and now() >= (dusk - timedelta(hours=2)) and now() <= dusk }}
+
+      - name: "Hexa Post-Alba"
+        unique_id: hexa_post_alba
+        state: >
+          {% set dawn = as_datetime(states('sensor.sun_next_dawn')) %}
+          {% set dusk = as_datetime(states('sensor.sun_next_dusk')) %}
+          {{ dawn is not none and dusk is not none
+             and now() >= (dawn + timedelta(minutes=10))
+             and now() <= (dusk - timedelta(hours=2)) }}
+
+  # Blocco separato per ogni sensore trigger - evita che un errore in uno
+  # blocchi il caricamento degli altri.
+
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    sensor:
+      - name: "Hexa Minuti Ultimo Update Stato Sistema"
+        unit_of_measurement: "min"
+        icon: mdi:timer-outline
+        state: >
+          {{ ((as_timestamp(now()) - as_timestamp(states.input_text.hexa_stato_sistema.last_updated)) / 60) | int }}
+
+  # ── [P10] Durata sessione ─────────────────────────────────────
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id: input_boolean.hexa_master
+    sensor:
+      - name: "Hexa Durata Sessione"
+        unit_of_measurement: "min"
+        icon: mdi:timer-play
+        state: >
+          {% if not is_state('input_boolean.hexa_master','on') %}
+            0
+          {% else %}
+            {% set start = states('input_datetime.hexa_session_start_time') %}
+            {% if start in ['unknown','unavailable',''] %}
+              0
+            {% else %}
+              {{ ((as_timestamp(now()) - as_timestamp(start)) / 60) | int(0) }}
+            {% endif %}
+          {% endif %}
+
+  # ── [P12] Prossima azione prevista ───────────────────────────
+  - sensor:
+      - name: "Hexa Prossima Azione"
+        icon: mdi:lightning-bolt-circle
+        state: >
+          {% if not is_state('input_boolean.hexa_master','on') %}
+            OFF
+          {% elif is_state('input_boolean.hexa_mode_finish','on') %}
+            {% set v=states('sensor.hexa_voltage_mean_30s')|float(0) %}
+            {% set vs=states('input_number.hexa_charge_stop_v')|float(55.35) %}
+            {% set i=states('sensor.hexa_limite_corrente_carica')|int(1) %}
+            Fine carica {{ i }}A Stop {{ vs }}V ({{ v|round(2) }}V)
+          {% elif is_state('input_boolean.hexa_manual_force','on') %}
+            Manuale {{ states('sensor.hexa_corrente_impostata') }}A @ {{ states('sensor.hexa_tensione_impostata') }}V
+          {% elif is_state('input_boolean.hexa_downtrend_active','on') %}
+            Slow attiva (anti-sbalzi)
+          {% elif not is_state('input_boolean.hexa_solar_automation','on') %}
+            Auto solare disabilitata
+          {% else %}
+            {% set g=states('sensor.hexa_grid_power_w')|float(0) %}
+            {% set dbu=states('input_number.hexa_deadband_up_w')|float(100) %}
+            {% set dbd=states('input_number.hexa_deadband_down_w')|float(5) %}
+            {% set cu=states('input_number.hexa_cooldown_up_sec')|int(30) %}
+            {% set lu=states('input_datetime.hexa_last_increase_time') %}
+            {% set su=((as_timestamp(now())-as_timestamp(lu))|int(999)) if lu not in ['unknown','unavailable',''] else 999 %}
+            {% set ru=[cu-su,0]|max %}
+            {% set sd=states('sensor.hexa_grid_power_stddev_60s')|float(0) %}
+            {% set ht=states('input_number.hexa_half_slow_stddev_w')|float(80) %}
+            {% if g < (0-dbu) %}
+              {% if ru > 0 %}
+                Aumento in {{ ru }}s ({{ (0-g)|round(0) }}W{% if sd>=ht %} HS{% endif %})
+              {% else %}
+                Aumento imminente ({{ (0-g)|round(0) }}W{% if sd>=ht %} HS{% endif %})
+              {% endif %}
+            {% elif g > dbd %}
+              Riduzione (import {{ g|round(0) }}W)
+            {% else %}
+              Stabile {{ g|round(0) }}W / EMA {{ states('input_number.hexa_ema_grid_w')|float(0)|round(0) }}W
+            {% endif %}
+          {% endif %}
+
+automation:
+  - id: hexa_charge_stop_and_shutdown_pkg
+    alias: "Hexa Charge Stop And Shutdown"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/20"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+      - condition: template
+        value_template: >
+          {{ states('sensor.hexa_voltage_mean_30s') | float(0)
+             >= states('input_number.hexa_charge_stop_v') | float(55.35) }}
+      - condition: template
+        value_template: >
+          {{ states('sensor.hexa_limite_corrente_carica') | float(99)
+             <= states('input_number.hexa_charge_stop_i_a') | float(2) }}
+    action:
+      - wait_template: >
+          {{ states('sensor.hexa_voltage_mean_30s') | float(0)
+             >= states('input_number.hexa_charge_stop_v') | float(55.35) }}
+        timeout:
+          seconds: "{{ states('input_number.hexa_charge_stop_hold_s') | int(120) }}"
+        continue_on_timeout: false
+      - condition: template
+        value_template: >
+          {{ states('sensor.hexa_voltage_mean_30s') | float(0)
+             >= states('input_number.hexa_charge_stop_v') | float(55.35) }}
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🛑 STOP CHARGE: Vmean={{ states('sensor.hexa_voltage_mean_30s') }}V I={{ states('sensor.hexa_corrente_impostata') }}A → spegnimento"
+      - service: script.hexa_stop_sequence
+
+  - id: hexa_auto_on_disable_manual_pkg
+    alias: "Hexa Auto On Disable Manual"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.hexa_solar_automation
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "on"
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.hexa_manual_force
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🔄 Modalità AUTO attivata - Manuale disattivato"
+
+  - id: hexa_manual_on_disable_auto_pkg
+    alias: "Hexa Manual On Disable Auto"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.hexa_manual_force
+        to: "on"
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.hexa_solar_automation
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_last_increase_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_last_manual_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.hexa_downtrend_active
+
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_dynamic_max_current
+        data:
+          value: "{{ states('input_number.hexa_max_current') | float(30) }}"
+
+      - service: script.hexa_send_manual
+
+  - id: hexa_manual_value_change_pkg
+    alias: "Hexa Manual Value Change"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id:
+          - input_number.set_hexa_volts
+          - input_number.set_hexa_amps
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+    action:
+      - delay: "00:00:01"
+      - service: script.hexa_send_manual
+
+  - id: hexa_master_off_pkg
+    alias: "Hexa Master Off"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: input_boolean.hexa_master
+        to: "off"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_dynamic_max_current
+        data:
+          value: "{{ states('input_number.hexa_max_current') | float(30) }}"
+      - service: script.hexa_stop_sequence
+
+  - id: hexa_reduce_dynamic_max_on_import_pkg
+    alias: "Hexa Reduce Dynamic Max On Import"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "off"
+      - condition: template
+        value_template: >
+          {% set g = states('sensor.hexa_grid_power_w') | float(0) %}
+          {% set db = states('input_number.hexa_deadband_down_w') | float(20) %}
+          {{ g > db }}
+    action:
+      - variables:
+          a_set: "{{ states('sensor.hexa_corrente_impostata') | float(0) }}"
+          g: "{{ states('sensor.hexa_grid_power_w') | float(0) }}"
+          db: "{{ states('input_number.hexa_deadband_down_w') | float(20) }}"
+          w_per_a: "{{ states('input_number.hexa_watt_per_amp') | float(60) }}"
+          min_a: "{{ states('input_number.hexa_min_amp_normal') | float(1) }}"
+          cooldown_d: "{{ states('input_number.hexa_cooldown_down_sec') | int(20) }}"
+          last_dec: "{{ states('input_datetime.hexa_last_decrease_time') }}"
+          since_dec: >-
+            {% if last_dec in ['unknown','unavailable',''] %}
+              999999
+            {% else %}
+              {{ (as_timestamp(now()) - as_timestamp(last_dec)) | int(0) }}
+            {% endif %}
+          reduce_a: >-
+            {% set extra_w = g - db %}
+            {% if extra_w > 0 %}
+              {{ (extra_w / w_per_a) | round(0, 'ceil') | int(1) }}
+            {% else %}
+              0
+            {% endif %}
+          i_cap_curve: "{{ states('sensor.hexa_limite_corrente_carica') | int(30) }}"
+          target_a_raw: "{{ [a_set - reduce_a, min_a] | max | round(0,'floor') | int(1) }}"
+          target_a: "{{ [target_a_raw, i_cap_curve] | min }}"
+      - condition: template
+        value_template: "{{ target_a < a_set and since_dec >= cooldown_d }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_dynamic_max_current
+        data:
+          value: "{{ target_a }}"
+      - variables:
+          v_user_r: "{{ states('input_number.set_hexa_volts') | float(53) }}"
+          v_max_r: "{{ states('input_number.hexa_max_voltage') | float(58) }}"
+          v_send_r: "{{ [v_user_r, v_max_r] | min | round(1) }}"
+      - service: rest_command.invia_parametri_hexa
+        data:
+          v_val: "{{ v_send_r }}"
+          i_val: "{{ [target_a, 1] | max }}"
+          access: "0"
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_last_decrease_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "⬇️ Riduzione diretta: {{ a_set|int }}A→{{ target_a|int }}A | rete={{ g|round(0) }}W"
+
+  - id: hexa_restore_dynamic_max_below_threshold_pkg
+    alias: "Hexa Restore Dynamic Max Below Threshold"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "off"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+      - condition: template
+        value_template: >
+          {% set g = states('sensor.hexa_grid_power_w') | float(0) %}
+          {% set db = states('input_number.hexa_deadband_down_w') | float(20) %}
+          {{ g <= db }}
+    action:
+      - variables:
+          i_default: "{{ states('input_number.hexa_max_current') | float(30) }}"
+          i_cap_curve: "{{ states('sensor.hexa_limite_corrente_carica') | float(i_default) }}"
+          target_dyn: "{{ [i_default, i_cap_curve] | min | round(0,'floor') | int(1) }}"
+          dyn_now: "{{ states('input_number.hexa_dynamic_max_current') | float(i_default) }}"
+      - condition: template
+        value_template: "{{ dyn_now != target_dyn }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_dynamic_max_current
+        data:
+          value: "{{ target_dyn }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🔄 Max dinamica: {{ dyn_now|int }}A→{{ target_dyn|int }}A (cap_curva={{ i_cap_curve|int }}A)"
+
+  - id: hexa_solar_amp_increase_pkg
+    alias: "Hexa Solar Amp Increase"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_downtrend_active
+        state: "off"
+      - condition: template
+        value_template: >
+          {% set g = states('sensor.hexa_grid_power_w') | float(0) %}
+          {% set db_up = states('input_number.hexa_deadband_up_w') | float(100) %}
+          {{ g < (0 - db_up) }}
+      - condition: template
+        value_template: >
+          {% set last = states('input_datetime.hexa_last_increase_time') %}
+          {% set cooldown = states('input_number.hexa_cooldown_up_sec') | int(45) %}
+          {% if last in ['unknown','unavailable',''] %}
+            true
+          {% else %}
+            {{ (as_timestamp(now()) - as_timestamp(last)) >= cooldown }}
+          {% endif %}
+    action:
+      - variables:
+          g_now: "{{ states('sensor.hexa_grid_power_w') | float(0) }}"
+          g_ema: "{{ states('input_number.hexa_ema_grid_w') | float(0) }}"
+          w_per_a: "{{ states('input_number.hexa_watt_per_amp') | float(60) }}"
+          a_set: "{{ states('sensor.hexa_corrente_impostata') | float(0) }}"
+          i_max: "{{ states('sensor.hexa_corrente_max_effettiva') | float(30) | round(0,'floor') | int(1) }}"
+          max_step: "{{ states('input_number.hexa_max_step_amp') | float(10) }}"
+          v_user: "{{ states('input_number.set_hexa_volts') | float(53) }}"
+          v_max_i: "{{ states('input_number.hexa_max_voltage') | float(58) }}"
+          v_send_i: "{{ [v_user, v_max_i] | min | round(1) }}"
+          sd: "{{ states('sensor.hexa_grid_power_stddev_60s') | float(0) }}"
+          half_slow_thr: "{{ states('input_number.hexa_half_slow_stddev_w') | float(80) }}"
+          half_slow_active: "{{ sd >= half_slow_thr }}"
+          eff_max_step: "{{ (states('input_number.hexa_half_slow_max_step_a') | int(1)) if (sd >= half_slow_thr) else (max_step | int(10)) }}"
+          surplus_w: "{{ [0, (0 - g_ema)] | max | float(0) }}"
+          step_raw: "{{ (surplus_w / w_per_a) | round(0,'ceil') | int(1) }}"
+          step_a: "{{ [step_raw, eff_max_step | int(1)] | min }}"
+          new_amp: "{{ [a_set + step_a, i_max] | min | round(0,'floor') | int(1) }}"
+      - condition: template
+        value_template: "{{ new_amp > a_set }}"
+      - service: rest_command.invia_parametri_hexa
+        data:
+          v_val: "{{ v_send_i }}"
+          i_val: "{{ [new_amp, 1] | max }}"
+          access: "0"
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_last_increase_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "⬆️ AUMENTO: {{ a_set|int }}A→{{ new_amp|int }}A | EMA={{ g_ema|round(0) }}W step={{ step_a }}A{% if half_slow_active %} ⚠️HS(σ={{ sd|round(0) }}W){% endif %}"
+
+  - id: hexa_solar_amp_control_optimized_pkg
+    alias: "Hexa Solar Amp Control Optimized"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+    action:
+      - variables:
+          slow_active: "{{ is_state('input_boolean.hexa_downtrend_active','on') }}"
+          v_user: "{{ states('input_number.set_hexa_volts') | float(53) }}"
+          v_max: "{{ states('input_number.hexa_max_voltage') | float(58) }}"
+          i_max: "{{ states('sensor.hexa_corrente_max_effettiva') | float(30) | round(0,'floor') | int(0) }}"
+          v_send: "{{ [v_user, v_max] | min | round(1) }}"
+          a_set: "{{ states('sensor.hexa_corrente_impostata') | float(0) }}"
+          g_now: "{{ states('sensor.hexa_grid_power_w') | float(0) }}"
+          g_avg: "{{ states('sensor.hexa_grid_power_mean_30s') | float(0) }}"
+          want_down: "{{ a_set > i_max }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ want_down }}"
+            sequence:
+              - service: rest_command.invia_parametri_hexa
+                data:
+                  v_val: "{{ v_send }}"
+                  i_val: "{{ [i_max, 1] | max }}"
+                  access: "0"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.hexa_stato_sistema
+                data:
+                  value: "⬇️ ENFORCE MAX: {{ a_set|int }}A→{{ i_max|int }}A | max_eff={{ i_max }}A{% if slow_active %} | 🐢 slow{% endif %}"
+
+  - id: hexa_slow_ab_counter_tick_pkg
+    alias: "Hexa Slow Ab Counter Tick"
+    mode: restart
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: template
+        value_template: "{{ states('sensor.hexa_grid_power_w') not in ['unknown','unavailable',''] }}"
+    action:
+      - variables:
+          g_now: "{{ states('sensor.hexa_grid_power_w') | float(0) }}"
+          g_prev: "{{ states('input_number.hexa_last_grid_w') | float(0) }}"
+          thr: "{{ states('input_number.hexa_slow_min_swing_w') | float(150) }}"
+          tx_sec: "{{ states('input_number.hexa_slow_tx_sec') | int(60) }}"
+          prev_dir: "{{ states('input_text.hexa_slow_last_dir') }}"
+          cur: "{{ states('input_number.hexa_slow_ab_count') | int(0) }}"
+          abs_delta: "{{ ((g_now - g_prev) | abs) | float(0) }}"
+          dir_new: >-
+            {% if (g_now - g_prev) >= thr %}
+              UP
+            {% elif (g_now - g_prev) <= (0 - thr) %}
+              DOWN
+            {% else %}
+              FLAT
+            {% endif %}
+          last_evt: "{{ states('input_datetime.hexa_slow_last_event_time') }}"
+          since_evt: >-
+            {% if last_evt in ['unknown','unavailable',''] %}
+              999999
+            {% else %}
+              {{ (as_timestamp(now()) - as_timestamp(strptime(last_evt, '%Y-%m-%d %H:%M:%S'))) | int(0) }}
+            {% endif %}
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ dir_new in ['UP','DOWN'] }}"
+            sequence:
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >
+                          {{ prev_dir in ['UP','DOWN']
+                             and dir_new != prev_dir
+                             and since_evt <= tx_sec }}
+                    sequence:
+                      - service: input_number.set_value
+                        target:
+                          entity_id: input_number.hexa_slow_ab_count
+                        data:
+                          value: "{{ [cur + 1, 50] | min }}"
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.hexa_slow_last_dir
+                        data:
+                          value: "{{ dir_new }}"
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: input_datetime.hexa_slow_last_event_time
+                        data:
+                          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.hexa_stato_sistema
+                        data:
+                          value: >-
+                            🔁 SBALZO {{ dir_new }} | Δ={{ abs_delta|round(0) }}W |
+                            AB={{ [cur + 1, 50] | min }}/{{ states('input_number.hexa_slow_ab_threshold') | int(4) }}
+                  - conditions:
+                      - condition: template
+                        value_template: >
+                          {{ prev_dir not in ['UP','DOWN'] or since_evt > tx_sec }}
+                    sequence:
+                      - service: input_number.set_value
+                        target:
+                          entity_id: input_number.hexa_slow_ab_count
+                        data:
+                          value: 1
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.hexa_slow_last_dir
+                        data:
+                          value: "{{ dir_new }}"
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: input_datetime.hexa_slow_last_event_time
+                        data:
+                          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        default: []
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_last_grid_w
+        data:
+          value: "{{ g_now }}"
+
+  - id: hexa_slow_ab_reset_window_expired_pkg
+    alias: "Hexa Slow Ab Reset Window Expired"
+    mode: restart
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+    action:
+      - variables:
+          tx_sec: "{{ states('input_number.hexa_slow_tx_sec') | int(60) }}"
+          last_evt: "{{ states('input_datetime.hexa_slow_last_event_time') }}"
+          cur: "{{ states('input_number.hexa_slow_ab_count') | int(0) }}"
+          since_evt: >-
+            {% if last_evt in ['unknown','unavailable',''] %}
+              999999
+            {% else %}
+              {{ (as_timestamp(now()) - as_timestamp(strptime(last_evt, '%Y-%m-%d %H:%M:%S'))) | int(0) }}
+            {% endif %}
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ cur > 0 and since_evt > tx_sec }}"
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.hexa_slow_ab_count
+                data:
+                  value: 0
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.hexa_slow_last_dir
+                data:
+                  value: "INIT"
+
+  - id: hexa_slow_activate_on_ab_pkg
+    alias: "Hexa Slow Activate On Ab"
+    mode: single
+    trigger:
+      - platform: template
+        value_template: >
+          {% set thr = states('input_number.hexa_slow_ab_threshold') | int(4) %}
+          {{ (states('input_number.hexa_slow_ab_count') | int(0)) >= thr }}
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_downtrend_active
+        state: "off"
+    action:
+      - variables:
+          a_set: "{{ states('sensor.hexa_corrente_impostata') | float(0) }}"
+          tc: "{{ states('input_number.hexa_slow_tc_min') | int(5) }}"
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.hexa_downtrend_active
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_down_since
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_slow_hold_a
+        data:
+          value: "{{ [a_set | round(0,'floor') | int(1), 1] | max }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_slow_ab_count
+        data:
+          value: 0
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🐢 MODALITÀ LENTA attivata (anti-sbalzi AB) per {{ tc }} min"
+
+  - id: hexa_slow_timeout_off_pkg
+    alias: "Hexa Slow Timeout Off"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_downtrend_active
+        state: "on"
+    action:
+      - variables:
+          tc_min: "{{ states('input_number.hexa_slow_tc_min') | float(5) }}"
+          since: "{{ states('input_datetime.hexa_down_since') }}"
+          elapsed_min: >-
+            {% if since in ['unknown','unavailable',''] %}
+              999999
+            {% else %}
+              {{ ((as_timestamp(now()) - as_timestamp(strptime(since, '%Y-%m-%d %H:%M:%S'))) / 60) | float(0) }}
+            {% endif %}
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ elapsed_min >= tc_min }}"
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.hexa_downtrend_active
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.hexa_slow_ab_count
+                data:
+                  value: 0
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.hexa_stato_sistema
+                data:
+                  value: "✅ MODALITÀ LENTA terminata (TC={{ tc_min }} min)"
+        default: []
+
+  - id: hexa_auto_off_before_dusk_consumption_pkg
+    alias: "Hexa Auto Off Before Dusk Consumption"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.hexa_pre_tramonto
+        state: "on"
+      - condition: template
+        value_template: >
+          {% set thr = states('input_number.hexa_auto_off_consumption_w') | int(150) %}
+          {{ states('sensor.hexa_grid_power_w') | float(0) > thr }}
+    action:
+      - variables:
+          thr: "{{ states('input_number.hexa_auto_off_consumption_w') | int(150) }}"
+          dur: "{{ states('input_number.hexa_auto_off_consumption_min') | int(3) }}"
+      - wait_for_trigger:
+          - platform: template
+            value_template: >
+              {% set thr = states('input_number.hexa_auto_off_consumption_w') | int(150) %}
+              {{ states('sensor.hexa_grid_power_w') | float(0) > thr }}
+            for:
+              minutes: "{{ dur }}"
+        timeout: "00:10:00"
+        continue_on_timeout: false
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🌇 AUTO OFF: consumo >{{ thr }}W (pre-tramonto) per {{ dur }} min"
+
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.hexa_solar_automation
+
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.hexa_master
+
+  - id: hexa_auto_on_after_dawn_surplus_pkg
+    alias: "Hexa Auto On After Dawn Surplus"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.hexa_post_alba
+        state: "on"
+      - condition: template
+        value_template: >
+          {% set thr = states('input_number.hexa_auto_on_surplus_w') | int(300) %}
+          {{ states('sensor.hexa_grid_power_w') | float(0) < (0 - thr) }}
+    action:
+      - variables:
+          thr: "{{ states('input_number.hexa_auto_on_surplus_w') | int(300) }}"
+          dur: "{{ states('input_number.hexa_auto_on_surplus_min') | int(2) }}"
+      - wait_for_trigger:
+          - platform: template
+            value_template: >
+              {% set thr = states('input_number.hexa_auto_on_surplus_w') | int(300) %}
+              {{ states('sensor.hexa_grid_power_w') | float(0) < (0 - thr) }}
+            for:
+              minutes: "{{ dur }}"
+        timeout: "00:05:00"
+        continue_on_timeout: false
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🌅 AUTO ON: esubero >{{ thr }}W dopo alba+10m per {{ dur }} min"
+
+      - service: switch.turn_on
+        data:
+          entity_id: "{{ states('input_text.hexa_smart_plug_entity') }}"
+
+      - delay: "00:00:05"
+
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_dynamic_max_current
+        data:
+          value: "{{ states('input_number.hexa_max_current') | float(30) }}"
+
+      - service: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.hexa_solar_automation
+            - input_boolean.hexa_master
+
+  - id: hexa_finish_mode_on_pkg
+    alias: "Hexa Finish Mode On"
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.hexa_voltage_mean_30s
+        above: 55.40
+        for:
+          seconds: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.hexa_mode_finish
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🟣 Fine carica: attivata (Vmean30s={{ states('sensor.hexa_voltage_mean_30s') }}V)"
+
+  - id: hexa_finish_mode_off_pkg
+    alias: "Hexa Finish Mode Off"
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.hexa_voltage_mean_30s
+        below: 54.80
+        for:
+          minutes: 2
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.hexa_mode_finish
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🟢 Fine carica: disattivata (ritorno a carica normale)"
+
+  - id: hexa_finish_charge_control_pkg
+    alias: "Hexa Finish Charge Control"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/20"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_mode_finish
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_solar_automation
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.hexa_manual_force
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.hexa_dati_validi
+        state: "on"
+      - condition: template
+        value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+    action:
+      - variables:
+          v_user: "{{ states('input_number.set_hexa_volts') | float(53) }}"
+          v_max: "{{ states('input_number.hexa_max_voltage') | float(58) }}"
+          v_send: "{{ [v_user, v_max] | min | round(1) }}"
+          i_cap: "{{ states('sensor.hexa_limite_corrente_carica') | int(2) }}"
+          g_now: "{{ states('sensor.hexa_grid_power_w') | float(0) }}"
+          db_dn: "{{ states('input_number.hexa_deadband_down_w') | float(5) }}"
+          importing: "{{ g_now > db_dn }}"
+          i_send: "{{ 1 if g_now > db_dn else i_cap }}"
+      - service: rest_command.invia_parametri_hexa
+        data:
+          v_val: "{{ v_send }}"
+          i_val: "{{ i_send }}"
+          access: "0"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🟣 Fine carica: {{ i_send }}A{% if importing %} ⚡IMPORT {{ g_now|round(0) }}W→1A{% else %} (curva V/I){% endif %} Vmean={{ states('sensor.hexa_voltage_mean_30s') }}V"
+
+  # ─── [P4] Aggiornamento EMA flusso rete ─────────────────────
+  - id: hexa_ema_update_pkg
+    alias: "Hexa Ema Aggiornamento"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        seconds: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.hexa_master
+        state: "on"
+      - condition: template
+        value_template: "{{ states('sensor.hexa_grid_power_w') not in ['unknown','unavailable'] }}"
+    action:
+      - variables:
+          g_now: "{{ states('sensor.hexa_grid_power_w') | float(0) }}"
+          ema_prev: "{{ states('input_number.hexa_ema_grid_w') | float(0) }}"
+          alpha: "{{ states('input_number.hexa_ema_alpha') | float(0.3) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_ema_grid_w
+        data:
+          value: "{{ (alpha * g_now + (1 - alpha) * ema_prev) | round(1) }}"
+
+  # ─── [P7/P10] Inizio sessione ────────────────────────────────
+  - id: hexa_session_start_pkg
+    alias: "Hexa Session Avvio"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.hexa_master
+        to: "on"
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_session_start_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_session_start_v
+        data:
+          value: "{{ state_attr('sensor.hexa_power_gateway','voltageNow') | float(0) | round(2) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hexa_ema_grid_w
+        data:
+          value: "{{ states('sensor.hexa_grid_power_w') | float(0) | round(1) }}"
+      - service: utility_meter.reset
+        target:
+          entity_id: sensor.hexa_energy_session
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "🆕 Sessione avviata: V={{ state_attr('sensor.hexa_power_gateway','voltageNow') | float(0) | round(1) }}V — contatori azzerati"
+
+script:
+  hexa_toggle_smart_plug:
+    alias: "Hexa: Toggle smart plug configurabile"
+    mode: single
+    sequence:
+      - variables:
+          plug: "{{ states('input_text.hexa_smart_plug_entity') | trim }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ plug != '' and is_state(plug, 'on') }}"
+            sequence:
+              - service: switch.turn_off
+                data:
+                  entity_id: "{{ plug }}"
+          - conditions:
+              - condition: template
+                value_template: "{{ plug != '' }}"
+            sequence:
+              - service: switch.turn_on
+                data:
+                  entity_id: "{{ plug }}"
+
+  hexa_stop_sequence:
+    alias: "Hexa: Spegnimento (bypass + sequenza + fail-safe 60s)"
+    mode: restart
+    sequence:
+      - variables:
+          v_now: "{{ state_attr('sensor.hexa_power_gateway','voltageNow') | float(0) }}"
+          i_now: "{{ state_attr('sensor.hexa_power_gateway','currentNow') | float(0) }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "⏳ OFF richiesto (Vnow={{ v_now|round(1) }} Inow={{ i_now|round(1) }})"
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ v_now > 55.4 and (i_now | round(0)) == 0 }}"
+            sequence:
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.hexa_stato_sistema
+                data:
+                  value: "⚡ BYPASS: Vnow>55.45 e Inow=0 -> OFF immediato"
+
+              - service: switch.turn_off
+                data:
+                  entity_id: "{{ states('input_text.hexa_smart_plug_entity') }}"
+
+              - wait_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'),'off') }}"
+                timeout: "00:01:00"
+                continue_on_timeout: true
+
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.hexa_stato_sistema
+                data:
+                  value: "✅ OFF completato (bypass). Stato presa: {{ states(states('input_text.hexa_smart_plug_entity')) }}"
+
+              - stop: "OFF bypass"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "⏳ Step1: set 45V 3A"
+
+      - service: rest_command.invia_parametri_hexa
+        data:
+          v_val: 45
+          i_val: 3
+          access: "0"
+
+      - delay: "00:00:05"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "⏳ Step2: set 56V 3A"
+
+      - service: rest_command.invia_parametri_hexa
+        data:
+          v_val: 56
+          i_val: 3
+          access: "0"
+
+      - delay: "00:00:05"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "⏳ Step3: OFF reale presa (tentativo)"
+
+      - service: switch.turn_off
+        data:
+          entity_id: "{{ states('input_text.hexa_smart_plug_entity') }}"
+
+      - wait_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'),'off') }}"
+        timeout: "00:01:00"
+        continue_on_timeout: true
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ is_state(states('input_text.hexa_smart_plug_entity'), 'on') }}"
+            sequence:
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.hexa_stato_sistema
+                data:
+                  value: "⚠️ FAIL-SAFE: dopo 60s ancora ON -> forzo OFF"
+
+              - service: switch.turn_off
+                data:
+                  entity_id: "{{ states('input_text.hexa_smart_plug_entity') }}"
+
+              - delay: "00:00:02"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "✅ OFF completato. Stato presa: {{ states(states('input_text.hexa_smart_plug_entity')) }}"
+
+  hexa_send_manual:
+    alias: "Hexa: Invio Parametri Manuali Completo"
+    mode: restart
+    sequence:
+      - variables:
+          v_user: "{{ states('input_number.set_hexa_volts') | float(53) }}"
+          i_user: "{{ states('input_number.set_hexa_amps') | float(3) }}"
+          v_max: "{{ states('input_number.hexa_max_voltage') | float(58) }}"
+          i_max: "{{ states('sensor.hexa_corrente_max_effettiva') | float(30) | round(0,'floor') | int(0) }}"
+          v_send: "{{ [v_user, v_max] | min | round(1) }}"
+          i_send: "{{ [[i_user, i_max] | min | round(1), 1] | max }}"
+
+      - service: rest_command.invia_parametri_hexa
+        data:
+          v_val: "{{ v_send }}"
+          i_val: "{{ i_send }}"
+          access: "0"
+
+      - delay: "00:00:02"
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hexa_last_manual_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hexa_stato_sistema
+        data:
+          value: "✋ MANUALE inviato: {{ i_send }}A @ {{ v_send }}V (max: {{ i_max }}A @ {{ v_max }}V)"
