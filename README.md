@@ -38,7 +38,7 @@ Licenza: GNU GPL v3
 aver installato file editor in home assistant
 
 
-\- Home Assistant
+\- Home Assistant 
 
 \- Caricatore HEXA compatibile API
 
@@ -48,7 +48,7 @@ aver installato file editor in home assistant
 
 \- AI varia aiuta nelle piccolezze.. 
 
-\---
+\--- Home Assistant collegato con scheda wifi dedicata da collegare al charger
 
 
 
