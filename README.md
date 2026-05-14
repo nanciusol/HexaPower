@@ -35,7 +35,7 @@ Licenza: GNU GPL v3
 
 
 \# Requisiti
-
+aver installato file editor in home assistant
 
 
 \- Home Assistant
@@ -46,21 +46,54 @@ Licenza: GNU GPL v3
 
 \- Sensore flusso rete o surplus FV
 
-
+\- AI varia aiuta nelle piccolezze.. 
 
 \---
 
 
 
+
+
 \# Installazione
 
+     
 
 
 \## 1. Copiare il package
 
+a. Apri il tuo file configuration.yaml e assicurati che sotto la voce homeassistant: sia presente la riga packages: !include_dir_named packages. Se hai già una sezione homeassistant:, aggiungi solo la riga dei packages come nell'esempio:
+YAML
+
+homeassistant:
+  # Altre configurazioni esistenti (es. name, latitude, ecc.)
+  packages: !include_dir_named packages
 
 
-```text
+b. incollare testo in /homeassistant/configuration.yaml:
 
-/config/packages/hexa\_power\_simple.yaml
+ lovelace:
+  mode: storage
+  dashboards:
+    hexa-power:
+      mode: yaml
+      title: Hexa Power
+      icon: mdi:solar-power-variant
+      show_in_sidebar: true
+      filename: dashboards/hexa_power_dashboard.yaml
+
+
+\## 2. Copiare il package
+
+
+a. copia il file "hexa_power_dashboard_portabile.yaml" della dashboard sotto la  cartella "dashboards" (se non c'è creala).
+
+b. copia il file "hexa_power_portabile.yaml" della dashboard sotto la  cartella "packages" (se non c'è creala).
+
+
+\## 3. Test e riavvio
+
+testa la configurazione:
+impostazioni / strumenti per sviluppatori / controlla e riavvia
+
+controlla la configurazione ;  se  ok = riavvio / riavvia home assistant
 
